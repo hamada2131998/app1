@@ -1,6 +1,10 @@
-import { getSupabase } from '../lib/supabase';
+import { supabase, getSupabase } from '../lib/supabase';
 
 function getClient() {
+  // لو supabase معمول كـ singleton (موجود) استخدمه مباشرة
+  if (supabase) return supabase;
+
+  // fallback لو المشروع بيستخدم getSupabase()
   const { client, error } = getSupabase();
   if (error || !client) throw new Error(error || "Supabase client not initialized");
   return client;
@@ -23,15 +27,14 @@ export async function signOut() {
 }
 
 export async function getMyMembership() {
-  const { client, error: initError } = getSupabase();
-  if (initError || !client) return null;
+  const client = getClient();
 
   const { data, error } = await client.rpc('get_my_membership');
-  
+
   if (error) {
     console.error("Error fetching membership:", error);
     return null;
   }
-  
-  return data && data.length > 0 ? data[0] : null;
+
+  return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
