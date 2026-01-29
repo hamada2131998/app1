@@ -1,226 +1,202 @@
-
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { MovementStatus, MovementType } from '../types';
-import { listMovements } from '../services/movements.service';
-import { getDashboardSummary, DashboardSummary } from '../services/reports.service';
-import { signOut } from '../services/auth.service';
-import { normalizeError } from '../lib/errors';
-import Loader from '../components/Loader';
-import Alert from '../components/Alert';
-import { 
-  ArrowUpCircleIcon, 
-  ArrowDownCircleIcon, 
-  ScaleIcon, 
-  ClockIcon,
-  CalendarIcon,
-  ArrowPathIcon
-} from '@heroicons/react/24/solid';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { SummaryCard } from '@/components/dashboard/SummaryCard';
+import { CashFlowCard } from '@/components/dashboard/CashFlowCard';
+import { MonthlyExpensesChart } from '@/components/dashboard/MonthlyExpensesChart';
+import { RecentActivityTable } from '@/components/dashboard/RecentActivityTable';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { getDashboardStats } from '@/services/dashboard';
+import { listCashMovements } from '@/services/cashMovements';
+import { listCategories } from '@/services/categories';
+import { Receipt, Clock, FolderKanban, Users, Sparkles, Calendar, Zap, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
-const StatCard = ({ title, amount, icon: Icon, color, loading }: any) => (
-  <div className="bg-white rounded-[2rem] shadow-sm p-8 border border-gray-100 hover:shadow-xl hover:shadow-indigo-50/50 transition-all group">
-    <div className="flex items-center justify-between mb-6">
-      <div className={`p-4 rounded-2xl ${color} group-hover:scale-110 transition-transform shadow-lg shadow-current/20`}>
-        <Icon className="h-6 w-6 text-white" />
-      </div>
-      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">موجز السندات</span>
-    </div>
-    <h3 className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">{title}</h3>
-    <div className="flex items-baseline gap-2">
-      {loading ? (
-        <div className="h-8 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
-      ) : (
-        <>
-          <p className="text-4xl font-black text-gray-900 tracking-tight">{amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-          <span className="text-xs font-black text-gray-400 uppercase">ر.س</span>
-        </>
-      )}
-    </div>
-  </div>
-);
-
-const Dashboard: React.FC = () => {
-  const { membership } = useAuth();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [recentMovements, setRecentMovements] = useState<any[]>([]);
-  const [dateRange, setDateRange] = useState({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0]
-  });
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [sumData, movesData] = await Promise.all([
-        getDashboardSummary(dateRange.from, dateRange.to),
-        listMovements()
-      ]);
-      setSummary(sumData);
-      setRecentMovements(movesData.slice(0, 5));
-    } catch (err: any) {
-      const norm = normalizeError(err);
-      if (norm.isAuthExpired) {
-        await signOut();
-        navigate('/login');
-      } else {
-        setError(norm.message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [dateRange]);
-
-  if (loading && !summary) return <Loader message="جاري إعداد التقرير المالي..." />;
-
-  return (
-    <div className="space-y-10 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">مرحباً بك، {membership?.role === 'OWNER' ? 'المدير العام' : 'المحاسب'}</h1>
-          <p className="text-gray-500 font-medium mt-1">نظرة شاملة على الأداء المالي لشركة {membership?.company_name}</p>
-        </div>
-        
-        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
-           <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600">
-              <CalendarIcon className="h-4 w-4 text-slate-400" />
-              نطاق التقرير:
-           </div>
-           <input 
-             type="date" 
-             className="text-xs font-bold text-indigo-600 outline-none p-2 rounded-lg hover:bg-indigo-50 transition-colors"
-             value={dateRange.from}
-             onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
-           />
-           <span className="text-gray-300 font-black">←</span>
-           <input 
-             type="date" 
-             className="text-xs font-bold text-indigo-600 outline-none p-2 rounded-lg hover:bg-indigo-50 transition-colors"
-             value={dateRange.to}
-             onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
-           />
-           <button onClick={fetchDashboardData} className="p-2 text-gray-400 hover:text-indigo-600">
-             <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-           </button>
-        </div>
-      </div>
-
-      {error && (
-        <Alert 
-          type="error" 
-          title="فشل تحديث البيانات" 
-          message={error} 
-          onRetry={fetchDashboardData} 
-          className="mb-8" 
-        />
-      )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        <StatCard 
-          title="إجمالي المقبوضات" 
-          amount={summary?.total_in || 0} 
-          icon={ArrowUpCircleIcon} 
-          color="bg-emerald-500" 
-          loading={loading}
-        />
-        <StatCard 
-          title="إجمالي المصروفات" 
-          amount={summary?.total_out || 0} 
-          icon={ArrowDownCircleIcon} 
-          color="bg-rose-500" 
-          loading={loading}
-        />
-        <StatCard 
-          title="صافي التدفق" 
-          amount={summary?.net_balance || 0} 
-          icon={ScaleIcon} 
-          color="bg-indigo-600" 
-          loading={loading}
-        />
-        <StatCard 
-          title="سندات الفترة" 
-          amount={summary?.movements_count || 0} 
-          icon={ClockIcon} 
-          color="bg-slate-800" 
-          loading={loading}
-        />
-      </div>
-
-      {/* Tables Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <div className="lg:col-span-2 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-10 py-8 border-b border-gray-50 flex items-center justify-between">
-            <h3 className="font-black text-gray-900 text-lg">أحدث الحركات المعتمدة</h3>
-            <button 
-              onClick={() => navigate('/movements')}
-              className="text-xs font-black text-indigo-600 hover:underline uppercase tracking-widest"
-            >
-              عرض السجل الكامل
-            </button>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {recentMovements.length > 0 ? recentMovements.map((move) => (
-              <div key={move.id} onClick={() => navigate(`/movements/${move.id}`)} className="px-10 py-6 flex items-center hover:bg-slate-50 transition-colors cursor-pointer group">
-                <div className={`p-3 rounded-2xl ml-6 transition-all ${move.type === MovementType.IN ? 'bg-emerald-50 group-hover:bg-emerald-100' : 'bg-rose-50 group-hover:bg-rose-100'}`}>
-                  {move.type === MovementType.IN ? (
-                    <ArrowUpCircleIcon className="h-6 w-6 text-emerald-600" />
-                  ) : (
-                    <ArrowDownCircleIcon className="h-6 w-6 text-rose-600" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-black text-gray-900">{move.category?.name || 'تصنيف عام'}</p>
-                  <p className="text-[10px] text-gray-400 font-bold mt-1">{new Date(move.movement_date).toLocaleDateString('ar-SA', { dateStyle: 'long' })}</p>
-                </div>
-                <div className="text-left">
-                  <p className={`text-lg font-black ${move.type === MovementType.IN ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {move.type === MovementType.IN ? '+' : '-'}{move.amount.toLocaleString()} 
-                    <span className="text-[10px] mr-1">ر.س</span>
-                  </p>
-                </div>
-              </div>
-            )) : (
-              <div className="p-20 text-center">
-                 <p className="text-gray-400 font-medium italic">لا توجد حركات معتمدة في هذا النطاق.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-8">
-           <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl shadow-slate-200">
-              <h3 className="font-black text-xl mb-4">إجراءات سريعة</h3>
-              <div className="space-y-4">
-                 <button onClick={() => navigate('/movements/new')} className="w-full py-4 bg-indigo-600 rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
-                    <ArrowUpCircleIcon className="h-5 w-5 rotate-45" />
-                    تسجيل سند جديد
-                 </button>
-                 <button onClick={() => navigate('/daily-close')} className="w-full py-4 bg-white/10 rounded-2xl font-black text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-3">
-                    <CalendarIcon className="h-5 w-5" />
-                    إقفال اليوم
-                 </button>
-              </div>
-           </div>
-
-           <div className="bg-indigo-50 rounded-[2.5rem] p-10 border border-indigo-100">
-              <h4 className="text-indigo-900 font-black text-lg mb-2">تلميحات ذكية</h4>
-              <p className="text-sm text-indigo-700 leading-relaxed font-medium">
-                 نصيحة: الإقفال اليومي المنتظم يقلل من احتمالية حدوث فروقات مالية غير مبررة بنسبة 90%.
-              </p>
-           </div>
-        </div>
-      </div>
-    </div>
-  );
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 }
+  }
 };
 
-export default Dashboard;
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
+
+export default function Dashboard() {
+  const { profile } = useAuth();
+  const { company_id, branch_id } = useCompany();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalIn: 0, totalOut: 0, net: 0, pendingCount: 0 });
+  const [recent, setRecent] = useState<{ id: string; description: string; project?: string; amount: number; status: 'completed' | 'pending'; date: string }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      try {
+        setLoading(true);
+        if (!company_id) return;
+
+        const [dash, categories, movements] = await Promise.all([
+          getDashboardStats({ company_id, branch_id }),
+          listCategories(company_id),
+          listCashMovements({ company_id, branch_id, limit: 5 }),
+        ]);
+
+        if (cancelled) return;
+        setStats(dash);
+
+        const catMap = new Map(categories.map(c => [c.id, c.name]));
+        const mapped = movements.map(m => ({
+          id: m.id,
+          description: `${catMap.get(m.category_id) || 'حركة'} • ${m.payment_method}`,
+          amount: m.type === 'IN' ? m.amount : -m.amount,
+          status: m.status === 'APPROVED' ? 'completed' : 'pending',
+          date: m.movement_date,
+        }));
+        setRecent(mapped);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [company_id, branch_id]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('ar-SA', {
+      style: 'currency',
+      currency: 'SAR',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const getCurrentDate = () => {
+    return new Date().toLocaleDateString('ar-SA', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  return (
+    <DashboardLayout>
+      <motion.div 
+        className="space-y-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Page Header - Enhanced */}
+        <motion.div 
+          variants={itemVariants}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        >
+          <div className="flex items-start gap-4">
+            {/* Animated Logo */}
+            <motion.div 
+              className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-glow relative overflow-hidden"
+              whileHover={{ scale: 1.05 }}
+            >
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                initial={{ x: '-100%' }}
+                animate={{ x: '100%' }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+              />
+              <Sparkles className="w-7 h-7 text-white relative z-10" />
+            </motion.div>
+            <div>
+              <h1 className="text-2xl lg:text-3xl font-black text-white">
+                مركز التحكم
+              </h1>
+              <p className="text-slate-500 mt-0.5">
+                مرحباً <span className="text-white font-semibold">{profile?.full_name || 'المستخدم'}</span>، إليك ملخص نشاطك
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-2 text-sm text-slate-400 bg-white/[0.03] backdrop-blur-xl px-4 py-2.5 rounded-xl border border-white/[0.08]"
+            >
+              <Calendar className="w-4 h-4 text-primary" />
+              <span>{getCurrentDate()}</span>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button 
+                onClick={() => navigate('/expenses')}
+                className="gradient-primary text-white shadow-glow border-0 px-6 group"
+              >
+                <Zap className="w-4 h-4 ml-2 group-hover:animate-pulse" />
+                طلب صرف جديد
+                <ArrowLeft className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Button>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Summary Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <SummaryCard
+            title="إجمالي المصروفات"
+            value={loading ? '...' : formatCurrency(stats.totalOut)}
+            subtitle="حركات معتمدة"
+            icon={Receipt}
+            variant="primary"
+            index={0}
+          />
+          <SummaryCard
+            title="حركات معلّقة"
+            value={loading ? '...' : stats.pendingCount.toString()}
+            subtitle="بانتظار الاعتماد"
+            icon={Clock}
+            variant="warning"
+            index={1}
+          />
+          <SummaryCard
+            title="إجمالي الإيرادات"
+            value={loading ? '...' : formatCurrency(stats.totalIn)}
+            subtitle="حركات معتمدة"
+            icon={FolderKanban}
+            variant="success"
+            index={2}
+          />
+          <SummaryCard
+            title="صافي الحركة"
+            value={loading ? '...' : formatCurrency(stats.net)}
+            subtitle="IN - OUT"
+            icon={Users}
+            variant="default"
+            index={3}
+          />
+        </div>
+
+        {/* Cash Flow & Chart Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <CashFlowCard
+            inflow={stats.totalIn}
+            outflow={stats.totalOut}
+            netFlow={stats.net}
+          />
+          <div className="lg:col-span-2">
+            <MonthlyExpensesChart />
+          </div>
+        </div>
+
+        {/* Recent Activity Table */}
+        <RecentActivityTable items={recent} />
+      </motion.div>
+    </DashboardLayout>
+  );
+}
