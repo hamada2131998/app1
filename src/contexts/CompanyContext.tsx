@@ -1,178 +1,141 @@
-// =====================================================
-// COMPANY CONTEXT - USER ROLE & COMPANY DATA
-// Fetches user_roles from Supabase after login
-// Blocks app rendering until company context is loaded
-// =====================================================
+// src/contexts/CompanyContext.tsx
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { supabase } from "../integrations/supabase/client";
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { AppRole } from '@/data/roles';
+type UserRole = "OWNER" | "ACCOUNTANT" | "EMPLOYEE" | string;
 
-interface CompanyContextType {
+type CompanyState = {
   company_id: string | null;
-  branch_id: string | null;
-  role: AppRole | null;
-  isLoading: boolean;
+  branch_id: string | null; // IMPORTANT: optional for OWNER
+  role: UserRole | null;
+};
+
+type CompanyContextValue = CompanyState & {
+  loading: boolean;
   error: string | null;
-  refetch: () => Promise<void>;
+  refresh: () => Promise<void>;
+  clearError: () => void;
+};
+
+const CompanyContext = createContext<CompanyContextValue | undefined>(undefined);
+
+export function useCompany() {
+  const ctx = useContext(CompanyContext);
+  if (!ctx) throw new Error("useCompany must be used within CompanyProvider");
+  return ctx;
 }
 
-const CompanyContext = createContext<CompanyContextType>({
-  company_id: null,
-  branch_id: null,
-  role: null,
-  isLoading: true,
-  error: null,
-  refetch: async () => {},
-});
+export function CompanyProvider({ children }: { children: React.ReactNode }) {
+  const [company, setCompany] = useState<CompanyState>({
+    company_id: null,
+    branch_id: null,
+    role: null,
+  });
 
-interface UserRoleRow {
-  id: string;
-  user_id: string;
-  company_id: string;
-  role: AppRole;
-  branch_id: string | null;
-  granted_at: string;
-  expires_at: string | null;
-}
-
-export function CompanyProvider({ children }: { children: ReactNode }) {
-  const [company_id, setCompanyId] = useState<string | null>(null);
-  const [branch_id, setBranchId] = useState<string | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const clearError = useCallback(() => setError(null), []);
+
   const fetchUserRole = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('[CompanyContext] Session error:', sessionError);
-        setError('فشل في جلب الجلسة');
-        return;
-      }
+    // 1) Get current session
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      if (!session?.user) {
-        console.log('[CompanyContext] No authenticated user');
-        // Clear all values when no user
-        setCompanyId(null);
-        setBranchId(null);
-        setRole(null);
-        return;
-      }
-
-      const userId = session.user.id;
-      console.log('[CompanyContext] Fetching role for user:', userId);
-
-      // Fetch user_roles where user_id = auth.uid()
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('id, user_id, company_id, role, branch_id, granted_at, expires_at')
-        .eq('user_id', userId)
-        .order('granted_at', { ascending: false });
-
-      if (rolesError) {
-        console.error('[CompanyContext] Error fetching user_roles:', rolesError);
-        setError('فشل في جلب صلاحيات المستخدم');
-        return;
-      }
-
-      if (!userRoles || userRoles.length === 0) {
-        console.warn('[CompanyContext] No roles found for user:', userId);
-        // User exists but has no roles assigned
-        setCompanyId(null);
-        setBranchId(null);
-        setRole(null);
-        setError('لم يتم تعيين صلاحيات لهذا الحساب');
-        return;
-      }
-
-      // Use the most recent active role (first one after ordering by granted_at DESC)
-      // Filter out expired roles
-      const now = new Date().toISOString();
-      const activeRoles = userRoles.filter((r: UserRoleRow) => 
-        !r.expires_at || r.expires_at > now
-      );
-
-      if (activeRoles.length === 0) {
-        console.warn('[CompanyContext] All roles expired for user:', userId);
-        setError('انتهت صلاحية جميع الأدوار المعينة');
-        return;
-      }
-
-      const primaryRole = activeRoles[0] as UserRoleRow;
-      console.log('[CompanyContext] Primary role found:', primaryRole);
-
-      setCompanyId(primaryRole.company_id);
-      setBranchId(primaryRole.branch_id);
-      setRole(primaryRole.role as AppRole);
-
-    } catch (err) {
-      console.error('[CompanyContext] Unexpected error:', err);
-      setError('حدث خطأ غير متوقع');
-    } finally {
-      setIsLoading(false);
+    if (sessionError) {
+      console.error("[CompanyContext] Session error:", sessionError);
+      setCompany({ company_id: null, branch_id: null, role: null });
+      setError("فشل في قراءة جلسة الدخول");
+      setLoading(false);
+      return;
     }
-  }, []);
 
-  // Initial fetch on mount
-  useEffect(() => {
-    fetchUserRole();
-  }, [fetchUserRole]);
+    const session = sessionData?.session;
+    const user = session?.user;
 
-  // Listen for auth state changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[CompanyContext] Auth state changed:', event);
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Defer Supabase call to avoid deadlock
-        setTimeout(() => {
-          fetchUserRole();
-        }, 0);
-      } else if (event === 'SIGNED_OUT') {
-        setCompanyId(null);
-        setBranchId(null);
-        setRole(null);
-        setIsLoading(false);
-        setError(null);
-      }
+    if (!user) {
+      // Not logged in
+      setCompany({ company_id: null, branch_id: null, role: null });
+      setLoading(false);
+      return;
+    }
+
+    const userId = user.id;
+
+    // 2) Query user_roles
+    // NOTE:
+    // - We do NOT require branch_id here.
+    // - We pick latest row by created_at desc.
+    const { data: roles, error: rolesError, status } = await supabase
+      .from("user_roles")
+      .select("user_id, company_id, role, branch_id, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (rolesError) {
+      console.error("[CompanyContext] user_roles query error:", { status, rolesError });
+
+      // Typical when RLS blocks or policies misconfigured
+      setCompany({ company_id: null, branch_id: null, role: null });
+      setError("خطأ في الصلاحيات: فشل في جلب صلاحيات المستخدم");
+      setLoading(false);
+      return;
+    }
+
+    const row = roles?.[0];
+
+    if (!row?.company_id || !row?.role) {
+      console.warn("[CompanyContext] No role row found for user:", userId, roles);
+      setCompany({ company_id: null, branch_id: null, role: null });
+      setError("خطأ في الصلاحيات: لا توجد صلاحيات مخصصة لهذا المستخدم");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ FIX: branch_id is OPTIONAL (especially for OWNER)
+    setCompany({
+      company_id: row.company_id ?? null,
+      branch_id: row.branch_id ?? null,
+      role: row.role ?? null,
     });
 
-    return () => subscription.unsubscribe();
+    setLoading(false);
+  }, []);
+
+  // Refresh helper
+  const refresh = useCallback(async () => {
+    await fetchUserRole();
   }, [fetchUserRole]);
 
-  return (
-    <CompanyContext.Provider
-      value={{
-        company_id,
-        branch_id,
-        role,
-        isLoading,
-        error,
-        refetch: fetchUserRole,
-      }}
-    >
-      {children}
-    </CompanyContext.Provider>
+  // Fetch once + on auth changes
+  useEffect(() => {
+    fetchUserRole();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event) => {
+      // whenever auth changes, refresh roles
+      fetchUserRole();
+    });
+
+    return () => {
+      sub?.subscription?.unsubscribe();
+    };
+  }, [fetchUserRole]);
+
+  const value = useMemo<CompanyContextValue>(
+    () => ({
+      company_id: company.company_id,
+      branch_id: company.branch_id,
+      role: company.role,
+      loading,
+      error,
+      refresh,
+      clearError,
+    }),
+    [company, loading, error, refresh, clearError]
   );
-}
 
-export function useCompany(): CompanyContextType {
-  const context = useContext(CompanyContext);
-  if (!context) {
-    throw new Error('useCompany must be used within a CompanyProvider');
-  }
-  return context;
-}
-
-// Utility hook to check if company context is ready
-export function useCompanyReady(): boolean {
-  const { isLoading, company_id, role } = useCompany();
-  return !isLoading && company_id !== null && role !== null;
+  return <CompanyContext.Provider value={value}>{children}</CompanyContext.Provider>;
 }
