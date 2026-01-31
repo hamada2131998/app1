@@ -1,22 +1,34 @@
 
 import { getSupabase } from '../lib/supabase';
 import { Custody, CustodyTransaction } from '../types';
+import type { AppRole } from '@/data/roles';
 
 /**
  * جلب قائمة العُهد مع بيانات الموظفين
  */
-export async function listCustodies(): Promise<Custody[]> {
+export async function listCustodies(params: {
+  company_id: string;
+  user_id: string;
+  role: AppRole;
+}): Promise<Custody[]> {
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
   // نجلب العهد ونحسب الرصيد يدوياً أو عبر استدعاء RPC لكل عنصر (الأفضل RPC لإعطاء مصدر الحقيقة)
-  const { data, error } = await client
+  let query = client
     .from('custodies')
     .select(`
       *,
       employee:profiles!custodies_user_id_fkey(id, full_name)
     `)
+    .eq('company_id', params.company_id)
     .eq('is_active', true);
+
+  if (params.role === 'employee') {
+    query = query.eq('user_id', params.user_id);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     if (error.code === 'PGRST301') throw new Error("SESSION_EXPIRED");

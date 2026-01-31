@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ExclamationTriangleIcon, InformationCircleIcon, CheckCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, Info, CheckCircle, RefreshCw } from 'lucide-react';
 
 interface AlertProps {
   type: 'error' | 'warning' | 'info' | 'success';
@@ -19,10 +19,10 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onRetry, className 
   };
 
   const icons = {
-    error: <ExclamationTriangleIcon className="h-5 w-5 text-rose-600" />,
-    warning: <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />,
-    info: <InformationCircleIcon className="h-5 w-5 text-indigo-600" />,
-    success: <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
+    error: <AlertTriangle className="h-5 w-5 text-rose-600" />,
+    warning: <AlertTriangle className="h-5 w-5 text-amber-600" />,
+    info: <Info className="h-5 w-5 text-indigo-600" />,
+    success: <CheckCircle className="h-5 w-5 text-emerald-600" />
   };
 
   return (
@@ -37,7 +37,7 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onRetry, className 
               onClick={onRetry} 
               className="mt-3 text-xs font-black flex items-center gap-1.5 hover:underline decoration-2"
             >
-              <ArrowPathIcon className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5" />
               إعادة المحاولة
             </button>
           )}

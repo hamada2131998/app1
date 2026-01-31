@@ -59,6 +59,8 @@ export interface Branch {
   id: string;
   company_id: string;
   name: string;
+  is_active?: boolean;
+  created_at?: string;
 }
 
 export interface CashAccount {
@@ -98,6 +100,7 @@ export interface CashMovement {
   type: MovementType;
   amount: number;
   category_id?: string;
+  cost_center_id?: string;
   payment_method: string;
   reference?: string;
   notes?: string;
@@ -110,6 +113,7 @@ export interface CashMovement {
   created_at: string;
   // Joins
   category?: Category;
+  cost_center?: { id: string; name: string };
   account?: CashAccount;
   branch?: Branch;
   creator?: UserProfile;

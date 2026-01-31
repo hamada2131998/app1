@@ -79,6 +79,7 @@ export function EmployeeExpenseReport() {
       'الوصف': exp.title,
       'الموظف': exp.requester_name,
       'الفئة': exp.gl_name,
+      'مركز التكلفة': exp.cost_center_name || '-',
       'المبلغ الصافي': exp.net_amount,
       'الضريبة': exp.vat_amount,
       'الإجمالي': exp.total_amount,
@@ -277,6 +278,7 @@ export function EmployeeExpenseReport() {
                   <TableHead className="text-slate-400 text-right">الوصف</TableHead>
                   <TableHead className="text-slate-400 text-right">الموظف</TableHead>
                   <TableHead className="text-slate-400 text-right">الفئة</TableHead>
+                  <TableHead className="text-slate-400 text-right">مركز التكلفة</TableHead>
                   <TableHead className="text-slate-400 text-right">المبلغ</TableHead>
                   <TableHead className="text-slate-400 text-right">الحالة</TableHead>
                   <TableHead className="text-slate-400 text-right">التاريخ</TableHead>
@@ -285,7 +287,7 @@ export function EmployeeExpenseReport() {
               <TableBody>
                 {filteredExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={7} className="text-center text-slate-500 py-8">
                       لا توجد مصروفات مطابقة للفلاتر المحددة
                     </TableCell>
                   </TableRow>
@@ -301,6 +303,7 @@ export function EmployeeExpenseReport() {
                       <TableCell className="text-white font-medium">{exp.title}</TableCell>
                       <TableCell className="text-slate-300">{exp.requester_name}</TableCell>
                       <TableCell className="text-slate-300">{exp.gl_name}</TableCell>
+                      <TableCell className="text-slate-300">{exp.cost_center_name || '-'}</TableCell>
                       <TableCell className="text-white font-medium">{formatCurrency(exp.total_amount)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn(

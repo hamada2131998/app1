@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import ProjectsNew from "./pages/ProjectsNew";
 import ExpensesNew from "./pages/ExpensesNew";
 import WalletNew from "./pages/WalletNew";
+import Custody from "./pages/Custody";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import SystemLogs from "./pages/SystemLogs";
@@ -77,6 +78,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><ProjectsNew /></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute><ExpensesNew /></ProtectedRoute>} />
+      <Route path="/custody" element={<ProtectedRoute><Custody /></ProtectedRoute>} />
       <Route path="/wallet" element={<ProtectedRoute><WalletNew /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
