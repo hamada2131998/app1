@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { useCompany } from '@/contexts/CompanyContext';
 import { hasPermission, hasAnyPermission, type Permission, type AppRole } from '@/data/roles';
+import { mapDbRoleToAppRole } from '@/lib/roleMapping';
 import { Shield, Lock } from 'lucide-react';
 
 interface PermissionGuardProps {
@@ -21,7 +22,7 @@ export function PermissionGuard({
   showMessage = false,
 }: PermissionGuardProps) {
   const { role } = useCompany();
-  const userRole = (role || 'employee') as AppRole;
+  const userRole = mapDbRoleToAppRole(role) || 'employee';
 
   let hasAccess = false;
 
@@ -77,14 +78,14 @@ export function withPermission<P extends object>(
 // Hook for checking permissions
 export function usePermission(permission: Permission): boolean {
   const { role } = useCompany();
-  const userRole = (role || 'employee') as AppRole;
+  const userRole = mapDbRoleToAppRole(role) || 'employee';
   return hasPermission(userRole, permission);
 }
 
 // Hook for checking multiple permissions
 export function usePermissions(permissions: Permission[], requireAll = false): boolean {
   const { role } = useCompany();
-  const userRole = (role || 'employee') as AppRole;
+  const userRole = mapDbRoleToAppRole(role) || 'employee';
   
   if (requireAll) {
     return permissions.every(p => hasPermission(userRole, p));

@@ -1,29 +1,29 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { UserRole, Custody } from '../types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCompany } from '@/contexts/CompanyContext';
+import { Custody } from '../types';
 import { listCustodies, processCustodyTx } from '../services/custody.service';
 import { normalizeError } from '../lib/errors';
 import { logger } from '../lib/logger';
 import { toast } from '../lib/toast';
-import { signOut } from '../services/auth.service';
 import Alert from '../components/Alert';
 import Loader from '../components/Loader';
 import { 
-  UserIcon, 
-  ArrowPathIcon,
-  PlusCircleIcon,
-  MinusCircleIcon,
-  CheckBadgeIcon,
-  XMarkIcon,
-  InformationCircleIcon,
-  WalletIcon
-} from '@heroicons/react/24/outline';
+  User,
+  RefreshCw,
+  PlusCircle,
+  MinusCircle,
+  CheckCircle,
+  X,
+  Wallet
+} from 'lucide-react';
 
 const CustodyPage: React.FC = () => {
   const navigate = useNavigate();
-  const { membership } = useAuth();
+  const { user, signOut } = useAuth();
+  const { company_id, role } = useCompany();
   const [custodies, setCustodies] = useState<Custody[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,14 +39,15 @@ const CustodyPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await listCustodies();
+      if (!company_id || !user || !role) return;
+      const data = await listCustodies({ company_id, user_id: user.id, role });
       setCustodies(data);
     } catch (err: any) {
       const norm = normalizeError(err);
       logger.error('CustodyList', err);
       if (norm.isAuthExpired) {
         await signOut();
-        navigate('/login');
+        navigate('/auth');
       } else {
         setError(norm.message);
       }
@@ -57,7 +58,7 @@ const CustodyPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [company_id, role, user]);
 
   const handleTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +85,7 @@ const CustodyPage: React.FC = () => {
     }
   };
 
-  const isAccountant = membership?.role === UserRole.OWNER || membership?.role === UserRole.ACCOUNTANT;
+  const isAccountant = role === 'company_owner' || role === 'accountant';
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto">
@@ -98,7 +99,7 @@ const CustodyPage: React.FC = () => {
           disabled={loading}
           className="p-4 bg-white border border-gray-200 text-gray-400 rounded-2xl hover:text-indigo-600 transition-all shadow-sm"
         >
-          <ArrowPathIcon className={`h-6 w-6 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-6 w-6 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -108,7 +109,7 @@ const CustodyPage: React.FC = () => {
         <Loader message="جاري جلب بيانات العهد والأرصدة الحالية..." />
       ) : custodies.length === 0 ? (
         <div className="bg-white rounded-[3rem] border-2 border-dashed border-gray-200 p-24 text-center">
-           <WalletIcon className="h-16 w-16 text-gray-300 mx-auto mb-6" />
+           <Wallet className="h-16 w-16 text-gray-300 mx-auto mb-6" />
            <h3 className="text-xl font-black text-gray-900">لا توجد عهد نشطة</h3>
            <p className="text-gray-500 mt-2 font-medium">ابدأ بتعريف أول عهدة من خلال إعدادات الموظفين.</p>
         </div>
@@ -119,7 +120,7 @@ const CustodyPage: React.FC = () => {
               <div className="absolute top-0 right-0 h-1.5 w-full bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-right"></div>
               <div className="flex items-center justify-between">
                 <div className="p-4 bg-indigo-50 rounded-2xl shadow-sm border border-indigo-100 text-indigo-600">
-                  <UserIcon className="h-8 w-8" />
+                  <User className="h-8 w-8" />
                 </div>
                 <span className={`text-[10px] px-4 py-1.5 rounded-full font-black uppercase tracking-widest ${item.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                   {item.is_active ? 'نشطة' : 'متوقفة'}
@@ -142,13 +143,13 @@ const CustodyPage: React.FC = () => {
                     onClick={() => { setSelectedCustody(item); setTxType('ISSUE'); setShowTxModal(true); }} 
                     className="flex-1 py-4 bg-indigo-600 text-white text-xs font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
                   >
-                    <PlusCircleIcon className="h-5 w-5" /> تغذية
+                    <PlusCircle className="h-5 w-5" /> تغذية
                   </button>
                   <button 
                     onClick={() => { setSelectedCustody(item); setTxType('SPEND'); setShowTxModal(true); }} 
                     className="flex-1 py-4 bg-white border border-rose-200 text-rose-600 text-xs font-black rounded-2xl hover:bg-rose-50 transition-all flex items-center justify-center gap-2"
                   >
-                    <MinusCircleIcon className="h-5 w-5" /> صرف
+                    <MinusCircle className="h-5 w-5" /> صرف
                   </button>
                 </div>
               )}
@@ -162,7 +163,7 @@ const CustodyPage: React.FC = () => {
           <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-10 border-b border-gray-50 flex justify-between items-center bg-slate-50/50">
               <h3 className="text-xl font-black text-gray-900">معاملة عهدة جديدة</h3>
-              <button onClick={() => setShowTxModal(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm"><XMarkIcon className="h-6 w-6 text-gray-400" /></button>
+              <button onClick={() => setShowTxModal(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm"><X className="h-6 w-6 text-gray-400" /></button>
             </div>
             <form onSubmit={handleTxSubmit} className="p-10 space-y-8">
               <div className="flex bg-slate-100 p-1.5 rounded-2xl">
@@ -198,7 +199,7 @@ const CustodyPage: React.FC = () => {
                 disabled={submitting || !txAmount} 
                 className={`w-full py-5 rounded-2xl font-black text-white shadow-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 ${txType === 'ISSUE' ? 'bg-indigo-600 shadow-indigo-100' : 'bg-rose-600 shadow-rose-100'}`}
               >
-                {submitting ? <ArrowPathIcon className="h-6 w-6 animate-spin" /> : <CheckBadgeIcon className="h-6 w-6" />} 
+                {submitting ? <RefreshCw className="h-6 w-6 animate-spin" /> : <CheckCircle className="h-6 w-6" />} 
                 تأكيد العملية وترحيلها
               </button>
             </form>

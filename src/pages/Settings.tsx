@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { MasterDataManager } from '@/components/settings/MasterDataManager';
+import { BranchManager } from '@/components/settings/BranchManager';
 import { getRoleName } from '@/data/roles';
 import { toast } from 'sonner';
 import { 
@@ -435,6 +436,9 @@ export default function Settings() {
                   </div>
                 </CardContent>
               </Card>
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <BranchManager />
             </motion.div>
           </TabsContent>
 

@@ -1,13 +1,13 @@
 // src/contexts/CompanyContext.tsx
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../integrations/supabase/client";
-
-type UserRole = "OWNER" | "ACCOUNTANT" | "EMPLOYEE" | string;
+import { mapDbRoleToAppRole } from "@/lib/roleMapping";
+import type { AppRole } from "@/data/roles";
 
 type CompanyState = {
   company_id: string | null;
   branch_id: string | null; // IMPORTANT: optional for OWNER
-  role: UserRole | null;
+  role: AppRole | null;
 };
 
 type CompanyContextValue = CompanyState & {
@@ -99,7 +99,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     setCompany({
       company_id: row.company_id ?? null,
       branch_id: row.branch_id ?? null,
-      role: row.role ?? null,
+      role: mapDbRoleToAppRole(row.role) ?? null,
     });
 
     setLoading(false);

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Receipt, FolderKanban, Wallet, Settings, LogOut, Building2, FileBarChart, Shield, ChevronRight, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Receipt, FolderKanban, Wallet, Settings, LogOut, Building2, FileBarChart, Shield, ChevronRight, Sparkles, HandCoins } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
@@ -23,6 +23,7 @@ import { getRoleName } from '@/data/roles';
 const menuItems = [
   { title: 'لوحة التحكم', url: '/dashboard', icon: LayoutDashboard, gradient: 'from-violet-500 to-indigo-500' },
   { title: 'المصروفات', url: '/expenses', icon: Receipt, gradient: 'from-cyan-500 to-blue-500' },
+  { title: 'عُهد الموظفين', url: '/custody', icon: HandCoins, gradient: 'from-teal-500 to-emerald-500' },
   { title: 'المشاريع', url: '/projects', icon: FolderKanban, gradient: 'from-emerald-500 to-teal-500' },
   { title: 'التقارير', url: '/reports', icon: FileBarChart, gradient: 'from-amber-500 to-orange-500' },
   { title: 'المحفظة', url: '/wallet', icon: Wallet, gradient: 'from-pink-500 to-rose-500' },

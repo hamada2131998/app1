@@ -8,7 +8,7 @@ export interface DashboardStats {
   pendingCount: number; // SUBMITTED
 }
 
-async function sumByType(params: { company_id: string; branch_id?: string | null; fromDate?: string; toDate?: string; type: MovementType }) {
+async function sumByType(params: { company_id: string; branch_id?: string | null; fromDate?: string; toDate?: string; type: MovementType; created_by?: string | null }) {
   const cId = requireCompanyId(params.company_id);
   let q = supabase
     .from('cash_movements')
@@ -17,6 +17,7 @@ async function sumByType(params: { company_id: string; branch_id?: string | null
     .eq('type', params.type)
     .eq('status', 'APPROVED');
   if (params.branch_id) q = q.eq('branch_id', params.branch_id);
+  if (params.created_by) q = q.eq('created_by', params.created_by);
   if (params.fromDate) q = q.gte('movement_date', params.fromDate);
   if (params.toDate) q = q.lte('movement_date', params.toDate);
 
@@ -29,6 +30,7 @@ async function sumByType(params: { company_id: string; branch_id?: string | null
 export async function getDashboardStats(params: {
   company_id: string;
   branch_id?: string | null;
+  created_by?: string | null;
   fromDate?: string;
   toDate?: string;
 }): Promise<DashboardStats> {
@@ -44,6 +46,7 @@ export async function getDashboardStats(params: {
     .eq('company_id', cId)
     .eq('status', 'SUBMITTED');
   if (params.branch_id) pendingQ = pendingQ.eq('branch_id', params.branch_id);
+  if (params.created_by) pendingQ = pendingQ.eq('created_by', params.created_by);
   if (params.fromDate) pendingQ = pendingQ.gte('movement_date', params.fromDate);
   if (params.toDate) pendingQ = pendingQ.lte('movement_date', params.toDate);
 

@@ -28,8 +28,8 @@ const itemVariants = {
 };
 
 export default function Dashboard() {
-  const { profile } = useAuth();
-  const { company_id, branch_id } = useCompany();
+  const { profile, user } = useAuth();
+  const { company_id, branch_id, role } = useCompany();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalIn: 0, totalOut: 0, net: 0, pendingCount: 0 });
@@ -43,9 +43,9 @@ export default function Dashboard() {
         if (!company_id) return;
 
         const [dash, categories, movements] = await Promise.all([
-          getDashboardStats({ company_id, branch_id }),
+          getDashboardStats({ company_id, branch_id, created_by: role === 'employee' ? user?.id : undefined }),
           listCategories(company_id),
-          listCashMovements({ company_id, branch_id, limit: 5 }),
+          listCashMovements({ company_id, branch_id, limit: 5, created_by: role === 'employee' ? user?.id : undefined }),
         ]);
 
         if (cancelled) return;
@@ -70,7 +70,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [company_id, branch_id]);
+  }, [company_id, branch_id, role, user]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ar-SA', {
