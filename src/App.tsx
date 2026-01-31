@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { CompanyProvider, useCompany } from "@/contexts/CompanyContext";
@@ -25,6 +25,9 @@ import ExpenseCreateView from "@/ui/new/expenses/ExpenseCreateView";
 import CustodyListView from "@/ui/new/custody/CustodyListView";
 import ApprovalsQueueView from "@/ui/new/approvals/ApprovalsQueueView";
 import SettingsHomeView from "@/ui/new/settings/SettingsHomeView";
+import SetupWizardView from "@/ui/new/setup/SetupWizardView";
+import { useSetupStatus } from "@/ui/new/hooks/useSetupStatus";
+import { getRoleCapabilities } from "@/lib/capabilities";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +85,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SetupGate({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { company_id, role } = useCompany();
+  const { status, loading } = useSetupStatus(company_id);
+  const capabilities = getRoleCapabilities(role);
+  const isSetupRoute = location.pathname.startsWith('/app/setup');
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (capabilities.isOwner && status && !status.setup_completed && !isSetupRoute) {
+    return <Navigate to="/app/setup" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { isLoading: companyLoading } = useCompany();
@@ -103,7 +124,9 @@ function AppRoutes() {
             path="/app"
             element={
               <ProtectedRoute>
-                <AppShell />
+                <SetupGate>
+                  <AppShell />
+                </SetupGate>
               </ProtectedRoute>
             }
           >
@@ -113,6 +136,7 @@ function AppRoutes() {
             <Route path="expenses/new" element={<ExpenseCreateView />} />
             <Route path="custody" element={<CustodyListView />} />
             <Route path="approvals" element={<ApprovalsQueueView />} />
+            <Route path="setup" element={<SetupWizardView />} />
             <Route path="settings" element={<SettingsHomeView />} />
             <Route path="*" element={<AppShellFallback />} />
           </Route>

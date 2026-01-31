@@ -5,9 +5,10 @@ import { getDashboardData } from '@/adapters/dashboard.adapter';
 import { listExpenses } from '@/adapters/expenses.adapter';
 import { listPendingApprovals } from '@/adapters/approvals.adapter';
 import { useCompany } from '@/contexts/CompanyContext';
-import { canApprove } from '@/ui/new/utils/roles';
+import { getRoleCapabilities } from '@/lib/capabilities';
 import { formatCurrency, formatDate } from '@/ui/new/utils/format';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateViews';
+import { useSetupStatus } from '@/ui/new/hooks/useSetupStatus';
 
 type PendingItem = {
   id: string;
@@ -18,13 +19,23 @@ type PendingItem = {
 
 export default function DashboardView() {
   const { company_id, branch_id, role } = useCompany();
+  const capabilities = getRoleCapabilities(role);
+  const { status: setupStatus } = useSetupStatus(company_id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{ totalIn: number; totalOut: number; net: number; pendingCount: number } | null>(null);
   const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingItem[]>([]);
+  const [showSetupBanner, setShowSetupBanner] = useState(false);
 
-  const canSeeApprovals = canApprove(role);
+  const canSeeApprovals = capabilities.canViewApprovals;
+
+  useEffect(() => {
+    const flag = localStorage.getItem('saitara.setup.completed');
+    if (flag) {
+      setShowSetupBanner(true);
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!company_id) return;
@@ -71,18 +82,51 @@ export default function DashboardView() {
   }
 
   if (isEmpty) {
+    const showSetupAction = capabilities.isOwner && !setupStatus?.setup_completed;
+    const canCreateExpense = capabilities.canCreateExpenses;
+    const actionLabel = showSetupAction
+      ? 'أكمل إعداد النظام'
+      : canCreateExpense
+        ? 'إنشاء مصروف'
+        : undefined;
+
     return (
       <EmptyState
         title="ابدأ أول حركة مالية"
         description="لم يتم العثور على حركات حتى الآن. أضف مصروفاً أو عهدة لبدء المتابعة."
-        actionLabel="إنشاء مصروف"
-        onAction={() => window.location.assign('/app/expenses/new')}
+        actionLabel={actionLabel}
+        onAction={
+          actionLabel
+            ? () => window.location.assign(showSetupAction ? '/app/setup' : '/app/expenses/new')
+            : undefined
+        }
       />
     );
   }
 
   return (
     <div className="space-y-6">
+      {showSetupBanner && (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">تم تجهيز النظام</p>
+              <p className="text-xs text-emerald-600">أصبح بإمكانك إدارة المصروفات والعهد بسهولة.</p>
+            </div>
+            <button
+              type="button"
+              className="rounded-full border border-emerald-200 px-3 py-1 text-[11px] font-medium text-emerald-700"
+              onClick={() => {
+                localStorage.removeItem('saitara.setup.completed');
+                setShowSetupBanner(false);
+              }}
+            >
+              تم
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-lg">
         <p className="text-sm text-slate-300">{kpi.label}</p>
         <h1 className="mt-3 text-3xl font-semibold">{formatCurrency(kpi.value)}</h1>
@@ -110,18 +154,24 @@ export default function DashboardView() {
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-900">إجراءات سريعة</h2>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 py-3 text-sm text-white" to="/app/expenses/new">
-            <PlusCircle className="h-4 w-4" />
-            إنشاء مصروف
-          </Link>
-          <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm text-slate-700" to="/app/custody">
-            <Wallet className="h-4 w-4" />
-            إدارة العهدة
-          </Link>
-          <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm text-slate-700" to="/app/approvals">
-            <Clock className="h-4 w-4" />
-            قائمة الموافقات
-          </Link>
+          {capabilities.canCreateExpenses && (
+            <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 py-3 text-sm text-white" to="/app/expenses/new">
+              <PlusCircle className="h-4 w-4" />
+              إنشاء مصروف
+            </Link>
+          )}
+          {capabilities.canViewCustody && (
+            <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm text-slate-700" to="/app/custody">
+              <Wallet className="h-4 w-4" />
+              إدارة العهدة
+            </Link>
+          )}
+          {capabilities.canViewApprovals && (
+            <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm text-slate-700" to="/app/approvals">
+              <Clock className="h-4 w-4" />
+              قائمة الموافقات
+            </Link>
+          )}
         </div>
       </div>
 

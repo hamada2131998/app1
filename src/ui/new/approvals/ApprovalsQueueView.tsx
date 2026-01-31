@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { actOnApproval, listPendingApprovals } from '@/adapters/approvals.adapter';
 import { useCompany } from '@/contexts/CompanyContext';
+import { getRoleCapabilities } from '@/lib/capabilities';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateViews';
-import { canApprove } from '@/ui/new/utils/roles';
 import { formatCurrency, formatDate } from '@/ui/new/utils/format';
 
 export default function ApprovalsQueueView() {
   const { role } = useCompany();
+  const capabilities = getRoleCapabilities(role);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
-  const canSeeApprovals = canApprove(role);
+  const canSeeApprovals = capabilities.canViewApprovals;
 
   const loadData = useCallback(async () => {
     setLoading(true);
