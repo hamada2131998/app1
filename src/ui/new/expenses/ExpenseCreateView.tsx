@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createExpense, listExpenseAccounts, listExpenseCategories } from '@/adapters/expenses.adapter';
 import { useCompany } from '@/contexts/CompanyContext';
+import { getRoleCapabilities } from '@/lib/capabilities';
 import type { CashAccountRow, CategoryRow } from '@/types/db';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateViews';
 
 export default function ExpenseCreateView() {
-  const { company_id, branch_id } = useCompany();
+  const { company_id, branch_id, role } = useCompany();
+  const capabilities = getRoleCapabilities(role);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +47,10 @@ export default function ExpenseCreateView() {
   }, [branch_id, company_id]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (capabilities.canCreateExpenses) {
+      loadData();
+    }
+  }, [capabilities.canCreateExpenses, loadData]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -82,6 +86,10 @@ export default function ExpenseCreateView() {
     }
   };
 
+  if (!capabilities.canCreateExpenses) {
+    return <EmptyState title="لا يوجد صلاحية" description="لا تملك صلاحية إنشاء المصروفات حالياً." />;
+  }
+
   if (loading) {
     return <LoadingState rows={3} />;
   }
@@ -94,7 +102,13 @@ export default function ExpenseCreateView() {
     return (
       <EmptyState
         title="بيانات غير مكتملة"
-        description="يلزم إعداد الحسابات والتصنيفات قبل إنشاء المصروف."
+        description={
+          capabilities.isOwner
+            ? 'يلزم إعداد الحسابات والتصنيفات قبل إنشاء المصروف.'
+            : 'يلزم إعداد الحسابات والتصنيفات بواسطة مالك الشركة قبل إنشاء المصروف.'
+        }
+        actionLabel={capabilities.isOwner ? 'أكمل إعداد النظام' : undefined}
+        onAction={capabilities.isOwner ? () => navigate('/app/setup') : undefined}
       />
     );
   }

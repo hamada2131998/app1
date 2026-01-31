@@ -71,3 +71,10 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Smoke-test checklist (Saitara)
+
+1. Owner: login → run setup wizard → dashboard KPIs show → create default categories/accounts → invite users.
+2. Accountant: login → create expense → submit → see status.
+3. Owner: approve/reject expense from approvals queue.
+4. Custody Officer: create custody transaction/request → see it listed.

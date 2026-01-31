@@ -1,11 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompany } from '@/contexts/CompanyContext';
-import { isOwnerRole } from '@/ui/new/utils/roles';
+import { getRoleCapabilities } from '@/lib/capabilities';
+import { Link } from 'react-router-dom';
 
 export default function SettingsHomeView() {
   const { profile, signOut } = useAuth();
   const { role } = useCompany();
-  const isOwner = isOwnerRole(role);
+  const capabilities = getRoleCapabilities(role);
 
   return (
     <div className="space-y-5">
@@ -29,17 +30,21 @@ export default function SettingsHomeView() {
         </button>
       </div>
 
-      {isOwner && (
+      {capabilities.isOwner && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-900">إعدادات الإدارة</h2>
           <div className="grid gap-3">
-            {[
-              'إعدادات الشركة',
-              'إدارة الفروع',
-              'مراكز التكلفة',
-              'المستخدمون والصلاحيات',
-            ].map((label) => (
-              <div key={label} className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
+            <Link
+              to="/app/setup"
+              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium text-slate-700 shadow-sm"
+            >
+              أكمل إعداد النظام
+            </Link>
+            {['إعدادات الشركة', 'إدارة الفروع', 'مراكز التكلفة', 'المستخدمون والصلاحيات'].map((label) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600"
+              >
                 {label} (قريباً)
               </div>
             ))}

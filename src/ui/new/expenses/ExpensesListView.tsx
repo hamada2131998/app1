@@ -4,7 +4,9 @@ import { Plus } from 'lucide-react';
 import { listExpenses } from '@/adapters/expenses.adapter';
 import type { MovementStatus } from '@/types/db';
 import { useCompany } from '@/contexts/CompanyContext';
+import { getRoleCapabilities } from '@/lib/capabilities';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateViews';
+import { useSetupStatus } from '@/ui/new/hooks/useSetupStatus';
 import { formatCurrency, formatDate } from '@/ui/new/utils/format';
 
 const statusOptions: Array<{ value: 'ALL' | MovementStatus; label: string }> = [
@@ -16,7 +18,9 @@ const statusOptions: Array<{ value: 'ALL' | MovementStatus; label: string }> = [
 ];
 
 export default function ExpensesListView() {
-  const { company_id, branch_id } = useCompany();
+  const { company_id, branch_id, role } = useCompany();
+  const capabilities = getRoleCapabilities(role);
+  const { status: setupStatus } = useSetupStatus(company_id);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<any[]>([]);
@@ -43,8 +47,10 @@ export default function ExpensesListView() {
   }, [branch_id, company_id, statusFilter]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (capabilities.canViewExpenses) {
+      loadData();
+    }
+  }, [capabilities.canViewExpenses, loadData]);
 
   const filteredRows = useMemo(() => {
     const term = search.trim();
@@ -54,6 +60,10 @@ export default function ExpensesListView() {
     );
   }, [rows, search]);
 
+  if (!capabilities.canViewExpenses) {
+    return <EmptyState title="لا يوجد صلاحية" description="لا تملك صلاحية الاطلاع على المصروفات حالياً." />;
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -61,10 +71,12 @@ export default function ExpensesListView() {
           <h1 className="text-lg font-semibold text-slate-900">المصروفات</h1>
           <p className="text-xs text-slate-500">متابعة المصروفات والحركات الأخيرة</p>
         </div>
-        <Link className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white" to="/app/expenses/new">
-          <Plus className="h-4 w-4" />
-          مصروف جديد
-        </Link>
+        {capabilities.canCreateExpenses && (
+          <Link className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white" to="/app/expenses/new">
+            <Plus className="h-4 w-4" />
+            مصروف جديد
+          </Link>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -95,7 +107,20 @@ export default function ExpensesListView() {
       ) : error ? (
         <ErrorState title="تعذر تحميل المصروفات" description={error} onRetry={loadData} />
       ) : filteredRows.length === 0 ? (
-        <EmptyState title="لا توجد مصروفات" description="لم يتم العثور على مصروفات بهذا الفلتر." />
+        <EmptyState
+          title="لا توجد مصروفات"
+          description="لم يتم العثور على مصروفات بهذا الفلتر."
+          actionLabel={
+            capabilities.isOwner && (!setupStatus?.has_account || !setupStatus?.has_category)
+              ? 'أكمل إعداد النظام'
+              : undefined
+          }
+          onAction={
+            capabilities.isOwner && (!setupStatus?.has_account || !setupStatus?.has_category)
+              ? () => window.location.assign('/app/setup')
+              : undefined
+          }
+        />
       ) : (
         <div className="space-y-3">
           {filteredRows.map((row) => (

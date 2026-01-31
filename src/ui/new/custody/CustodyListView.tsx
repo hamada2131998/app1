@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createCustodyTransaction, getCustodies, getCustodyTransactions } from '@/adapters/custody.adapter';
 import { useCompany } from '@/contexts/CompanyContext';
+import { getRoleCapabilities } from '@/lib/capabilities';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateViews';
-import { canApprove } from '@/ui/new/utils/roles';
 import { formatCurrency, formatDate } from '@/ui/new/utils/format';
 
 type CustodyItem = any;
 
 export default function CustodyListView() {
   const { role } = useCompany();
+  const capabilities = getRoleCapabilities(role);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [custodies, setCustodies] = useState<CustodyItem[]>([]);
@@ -19,7 +20,7 @@ export default function CustodyListView() {
   const [txNotes, setTxNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const canManage = canApprove(role);
+  const canManage = capabilities.canManageCustody;
 
   const loadCustodies = useCallback(async () => {
     setLoading(true);
@@ -48,8 +49,10 @@ export default function CustodyListView() {
   }, [selected]);
 
   useEffect(() => {
-    loadCustodies();
-  }, [loadCustodies]);
+    if (capabilities.canViewCustody) {
+      loadCustodies();
+    }
+  }, [capabilities.canViewCustody, loadCustodies]);
 
   useEffect(() => {
     loadTransactions();
@@ -82,6 +85,10 @@ export default function CustodyListView() {
       setSubmitting(false);
     }
   };
+
+  if (!capabilities.canViewCustody) {
+    return <EmptyState title="لا يوجد صلاحية" description="لا تملك صلاحية الوصول إلى العهد حالياً." />;
+  }
 
   if (loading) {
     return <LoadingState rows={4} />;
