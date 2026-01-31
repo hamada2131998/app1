@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppProvider } from "@/contexts/AppContext";
 import { CompanyProvider, useCompany } from "@/contexts/CompanyContext";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { useSetupStatus } from "@/hooks/useSetupStatus";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import ProjectsNew from "./pages/ProjectsNew";
@@ -16,6 +17,7 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import SystemLogs from "./pages/SystemLogs";
 import TeamNew from "./pages/TeamNew";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +56,23 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SetupGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { role } = useCompany();
+  const { isComplete, loading } = useSetupStatus();
+  const location = useLocation();
+
+  if (!user) return <>{children}</>;
+  if (role !== "company_owner") return <>{children}</>;
+  if (loading || isComplete) return <>{children}</>;
+
+  if (location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { isLoading: companyLoading } = useCompany();
@@ -71,19 +90,22 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/projects" element={<ProtectedRoute><ProjectsNew /></ProtectedRoute>} />
-      <Route path="/expenses" element={<ProtectedRoute><ExpensesNew /></ProtectedRoute>} />
-      <Route path="/wallet" element={<ProtectedRoute><WalletNew /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/system-logs" element={<ProtectedRoute><SystemLogs /></ProtectedRoute>} />
-      <Route path="/team" element={<ProtectedRoute><TeamNew /></ProtectedRoute>} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <SetupGuard>
+      <Routes>
+        <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/projects" element={<ProtectedRoute><ProjectsNew /></ProtectedRoute>} />
+        <Route path="/expenses" element={<ProtectedRoute><ExpensesNew /></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute><WalletNew /></ProtectedRoute>} />
+        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/system-logs" element={<ProtectedRoute><SystemLogs /></ProtectedRoute>} />
+        <Route path="/team" element={<ProtectedRoute><TeamNew /></ProtectedRoute>} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </SetupGuard>
   );
 }
 

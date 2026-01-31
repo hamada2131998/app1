@@ -36,6 +36,13 @@ npm i
 npm run dev
 ```
 
+## How to test the onboarding flow
+
+1. Sign in as a company owner account.
+2. If the company has no branches, cost centers, or employees, you will be redirected to `/onboarding`.
+3. Complete the three steps (create a branch, create a cost center, invite an employee).
+4. Once all steps are complete, use the **الانتقال للوحة التحكم** button to access the main app.
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).
