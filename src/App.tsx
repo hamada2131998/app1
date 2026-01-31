@@ -17,6 +17,14 @@ import Reports from "./pages/Reports";
 import SystemLogs from "./pages/SystemLogs";
 import TeamNew from "./pages/TeamNew";
 import NotFound from "./pages/NotFound";
+import { USE_NEW_MOBILE_UI } from "@/ui/new/featureFlags";
+import { AppShell } from "@/ui/new/layout/AppShell";
+import DashboardView from "@/ui/new/dashboard/DashboardView";
+import ExpensesListView from "@/ui/new/expenses/ExpensesListView";
+import ExpenseCreateView from "@/ui/new/expenses/ExpenseCreateView";
+import CustodyListView from "@/ui/new/custody/CustodyListView";
+import ApprovalsQueueView from "@/ui/new/approvals/ApprovalsQueueView";
+import SettingsHomeView from "@/ui/new/settings/SettingsHomeView";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +65,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { isLoading: companyLoading } = useCompany();
+  const useNewUi = USE_NEW_MOBILE_UI;
 
   // Show loading state while auth OR company context is loading
   if (authLoading || (user && companyLoading)) {
@@ -73,15 +82,40 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/projects" element={<ProtectedRoute><ProjectsNew /></ProtectedRoute>} />
-      <Route path="/expenses" element={<ProtectedRoute><ExpensesNew /></ProtectedRoute>} />
-      <Route path="/wallet" element={<ProtectedRoute><WalletNew /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/system-logs" element={<ProtectedRoute><SystemLogs /></ProtectedRoute>} />
-      <Route path="/team" element={<ProtectedRoute><TeamNew /></ProtectedRoute>} />
+      {useNewUi ? (
+        <>
+          <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardView />} />
+            <Route path="expenses" element={<ExpensesListView />} />
+            <Route path="expenses/new" element={<ExpenseCreateView />} />
+            <Route path="custody" element={<CustodyListView />} />
+            <Route path="approvals" element={<ApprovalsQueueView />} />
+            <Route path="settings" element={<SettingsHomeView />} />
+          </Route>
+        </>
+      ) : (
+        <>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/projects" element={<ProtectedRoute><ProjectsNew /></ProtectedRoute>} />
+          <Route path="/expenses" element={<ProtectedRoute><ExpensesNew /></ProtectedRoute>} />
+          <Route path="/wallet" element={<ProtectedRoute><WalletNew /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/system-logs" element={<ProtectedRoute><SystemLogs /></ProtectedRoute>} />
+          <Route path="/team" element={<ProtectedRoute><TeamNew /></ProtectedRoute>} />
+        </>
+      )}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
