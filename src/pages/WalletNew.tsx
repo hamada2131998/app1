@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { useApp } from '@/contexts/AppContext';
+import { addNotification } from '@/data/notifications';
 import { toast } from 'sonner';
 import { 
   Wallet as WalletIcon, Plus, ArrowDownLeft, ArrowUpRight, 
@@ -31,8 +32,15 @@ export default function WalletNew() {
   const [recipientId, setRecipientId] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const [topUpNote, setTopUpNote] = useState('');
 
   const isAdmin = currentRole === 'admin' || currentRole === 'accountant';
+  const isEmployee = currentRole === 'employee';
+
+  const custodyLimit = Math.max(profile.wallet_balance || 0, walletBalance, 100000);
+  const custodyProgress = Math.min((walletBalance / custodyLimit) * 100, 100);
 
   const handleAction = () => {
     const numAmount = parseFloat(amount);
@@ -132,6 +140,34 @@ export default function WalletNew() {
     .filter(t => t.type !== 'deposit')
     .reduce((sum, t) => sum + t.amount, 0);
 
+  const handleTopUpRequest = () => {
+    const amountValue = parseFloat(topUpAmount);
+    if (!amountValue || amountValue <= 0) {
+      toast.error('يرجى إدخال مبلغ صحيح');
+      return;
+    }
+
+    const managers = team.filter(member => member.role === 'manager' || member.role === 'admin');
+    managers.forEach(manager => {
+      addNotification({
+        type: 'system',
+        title: 'طلب تعبئة رصيد',
+        message: `${profile.name} طلب تعبئة رصيد بقيمة ${formatCurrency(amountValue)}${topUpNote ? ` - ${topUpNote}` : ''}`,
+        link: '/wallet',
+        user_id: manager.id,
+        metadata: {
+          requesterId: profile.id,
+          amount: amountValue,
+        },
+      });
+    });
+
+    toast.success('تم إرسال طلب التعبئة إلى المديرين');
+    setTopUpAmount('');
+    setTopUpNote('');
+    setIsTopUpOpen(false);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
@@ -182,6 +218,28 @@ export default function WalletNew() {
                 <p className="text-lg font-bold text-white">{formatCurrency(totalWithdrawals)}</p>
               </div>
             </div>
+          </div>
+
+          <div className="relative mt-6 space-y-3">
+            <div className="flex items-center justify-between text-xs text-violet-200">
+              <span>رصيد العهدة المتاح</span>
+              <span>{formatCurrency(walletBalance)} من {formatCurrency(custodyLimit)}</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-white/20 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all"
+                style={{ width: `${custodyProgress}%` }}
+              />
+            </div>
+            {isEmployee && (
+              <Button
+                variant="secondary"
+                onClick={() => setIsTopUpOpen(true)}
+                className="bg-white/10 text-white hover:bg-white/20 rounded-xl w-full sm:w-auto"
+              >
+                طلب تعبئة الرصيد
+              </Button>
+            )}
           </div>
         </motion.div>
 
@@ -377,6 +435,53 @@ export default function WalletNew() {
                 }`}
               >
                 {submitting ? 'جاري التنفيذ...' : 'تأكيد'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isTopUpOpen} onOpenChange={setIsTopUpOpen}>
+          <DialogContent className="bg-[#1e293b]/95 backdrop-blur-2xl border-white/[0.08] rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-white">طلب تعبئة رصيد</DialogTitle>
+              <DialogDescription className="text-slate-400">
+                سيتم إرسال إشعار للمديرين بطلب التعبئة.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">المبلغ المطلوب (ريال)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                  placeholder="0"
+                  className="bg-white/[0.05] border-white/[0.08] text-white rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-300">ملاحظة (اختياري)</Label>
+                <Input
+                  value={topUpNote}
+                  onChange={(e) => setTopUpNote(e.target.value)}
+                  placeholder="مثال: مصروفات مهمة هذا الأسبوع"
+                  className="bg-white/[0.05] border-white/[0.08] text-white rounded-xl"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsTopUpOpen(false)}
+                className="border-white/[0.08] text-slate-300 hover:bg-white/[0.05] rounded-xl"
+              >
+                إلغاء
+              </Button>
+              <Button onClick={handleTopUpRequest} className="gradient-primary rounded-xl" disabled={!topUpAmount}>
+                إرسال الطلب
               </Button>
             </DialogFooter>
           </DialogContent>

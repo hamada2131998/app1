@@ -5,6 +5,7 @@
 // =====================================================
 
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Plus, CheckCircle, XCircle, Clock, Send, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Clock, Send, Trash2, AlertTriangle } from 'lucide-react';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useSetupStatus } from '@/hooks/useSetupStatus';
 import type { CashAccountRow, CategoryRow, MovementStatus, MovementType } from '@/types/db';
 import { listCashAccounts } from '@/services/cashAccounts';
 import { listCategories } from '@/services/categories';
@@ -53,6 +55,7 @@ const statusLabel: Record<MovementStatus, { label: string; icon: any; badge: str
 
 export default function ExpensesNew() {
   const { company_id, branch_id, role } = useCompany();
+  const { counts, loading: setupLoading, refresh: refreshSetup } = useSetupStatus();
 
   const canApprove = role === 'company_owner' || role === 'finance_manager' || role === 'accountant';
 
@@ -190,13 +193,63 @@ export default function ExpensesNew() {
     </div>
   );
 
+  const setupMissing = !!company_id && !setupLoading && (counts.branches === 0 || counts.costCenters === 0);
+
+  const handleScrollToCreate = () => {
+    const el = document.getElementById('create-movement');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  if (setupMissing) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 animate-fade-in">
+          {header}
+          <div className="rounded-2xl bg-[#1e293b]/50 border border-white/[0.08] p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-amber-400" />
+              </div>
+              <div className="space-y-4 flex-1">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">يلزم إكمال إعدادات الشركة قبل إنشاء المصروفات</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    يجب إضافة فرع واحد على الأقل ومركز تكلفة واحد قبل إنشاء أي حركة.
+                  </p>
+                </div>
+                <ul className="space-y-2 text-sm text-slate-300">
+                  {counts.branches === 0 && <li>• لم يتم إنشاء أي فروع بعد.</li>}
+                  {counts.costCenters === 0 && <li>• لم يتم إنشاء أي مراكز تكلفة بعد.</li>}
+                </ul>
+                <div className="flex flex-wrap gap-3">
+                  {role === 'company_owner' ? (
+                    <Button asChild className="gradient-primary">
+                      <Link to="/onboarding">إكمال الإعداد الآن</Link>
+                    </Button>
+                  ) : (
+                    <Badge className="bg-white/[0.06] text-slate-300 border border-white/[0.08]">
+                      اطلب من المالك إكمال الإعداد
+                    </Badge>
+                  )}
+                  <Button variant="outline" onClick={refreshSetup} className="border-white/[0.08] text-slate-200 hover:bg-white/[0.05]">
+                    تحديث الحالة
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6 animate-fade-in">
         {header}
 
         {/* Create */}
-        <div className="rounded-2xl bg-[#1e293b]/40 backdrop-blur-2xl border border-white/[0.08] p-6 space-y-4">
+        <div id="create-movement" className="rounded-2xl bg-[#1e293b]/40 backdrop-blur-2xl border border-white/[0.08] p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-white font-semibold">
               <Plus className="w-5 h-5" /> إنشاء حركة (مسودة)
@@ -325,7 +378,13 @@ export default function ExpensesNew() {
                   </div>
 
                   {rows.length === 0 && !loading ? (
-                    <div className="text-center py-10 text-slate-400">لا توجد بيانات</div>
+                    <div className="text-center py-10 space-y-3">
+                      <div className="text-slate-200 font-semibold">لا توجد حركات في هذا التبويب بعد</div>
+                      <p className="text-slate-500 text-sm">ابدأ بإنشاء حركة جديدة من الأعلى لمتابعة دورة الموافقات.</p>
+                      <Button variant="outline" onClick={handleScrollToCreate} className="border-white/[0.08] text-slate-200 hover:bg-white/[0.05]">
+                        إنشاء حركة جديدة
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {rows.map((m: any) => (

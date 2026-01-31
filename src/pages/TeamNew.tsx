@@ -344,25 +344,43 @@ export default function TeamNew() {
 
         {/* Team Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <AnimatePresence>
-            {filteredTeam.map((member, index) => {
-              const config = roleConfig[member.role];
-              const RoleIcon = config.icon;
-              const isCurrentUser = member.id === profile.id;
-              
-              return (
-                <motion.div
-                  key={member.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`rounded-2xl bg-[#1e293b]/40 backdrop-blur-xl border p-6 transition-all hover:-translate-y-1 ${
-                    member.status === 'inactive' 
-                      ? 'border-white/[0.05] opacity-60' 
-                      : 'border-white/[0.08]'
-                  }`}
-                >
+          {team.length === 0 ? (
+            <div className="col-span-full rounded-2xl bg-[#1e293b]/40 backdrop-blur-xl border border-white/[0.08] p-12 text-center">
+              <Users className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <h3 className="text-lg font-semibold text-white">لا يوجد أعضاء بعد</h3>
+              <p className="text-slate-400 mt-2">ابدأ بدعوة أول موظف لتفعيل المصروفات والموافقات.</p>
+              {isAdmin && (
+                <Button onClick={() => setIsAddDialogOpen(true)} className="mt-4 gradient-primary">
+                  <Plus className="w-4 h-4 ml-2" />
+                  إضافة أول عضو
+                </Button>
+              )}
+            </div>
+          ) : filteredTeam.length === 0 ? (
+            <div className="col-span-full rounded-2xl bg-[#1e293b]/40 backdrop-blur-xl border border-white/[0.08] p-12 text-center">
+              <Users className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+              <p className="text-slate-400">لا يوجد أعضاء مطابقين للبحث</p>
+            </div>
+          ) : (
+            <AnimatePresence>
+              {filteredTeam.map((member, index) => {
+                const config = roleConfig[member.role];
+                const RoleIcon = config.icon;
+                const isCurrentUser = member.id === profile.id;
+                
+                return (
+                  <motion.div
+                    key={member.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05 }}
+                    className={`rounded-2xl bg-[#1e293b]/40 backdrop-blur-xl border p-6 transition-all hover:-translate-y-1 ${
+                      member.status === 'inactive' 
+                        ? 'border-white/[0.05] opacity-60' 
+                        : 'border-white/[0.08]'
+                    }`}
+                  >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-14 h-14 rounded-xl ${config.bgColor} flex items-center justify-center text-lg font-bold ${config.color}`}>
@@ -463,18 +481,12 @@ export default function TeamNew() {
                       تعديل الصلاحيات
                     </Button>
                   )}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          )}
         </div>
-
-        {filteredTeam.length === 0 && (
-          <div className="rounded-2xl bg-[#1e293b]/40 backdrop-blur-xl border border-white/[0.08] p-12 text-center">
-            <Users className="w-16 h-16 mx-auto mb-4 text-slate-600" />
-            <p className="text-slate-400">لا يوجد أعضاء مطابقين للبحث</p>
-          </div>
-        )}
       </div>
 
       {/* Permissions Dialog */}
