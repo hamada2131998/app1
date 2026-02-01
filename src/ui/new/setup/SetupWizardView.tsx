@@ -9,6 +9,7 @@ import {
 } from '@/adapters/setup.adapter';
 import { useCompany } from '@/contexts/CompanyContext';
 import { getRoleCapabilities } from '@/lib/capabilities';
+import { normalizeError } from '@/lib/errors';
 import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateViews';
 import { useSetupStatus } from '@/ui/new/hooks/useSetupStatus';
 import type { UserRole } from '@/types';
@@ -52,7 +53,7 @@ export default function SetupWizardView() {
       const data = await listSetupUsers();
       setUsers(data || []);
     } catch (err: any) {
-      setLocalError(err?.message || 'تعذر تحميل المستخدمين');
+      setLocalError(normalizeError(err).message);
     }
   }, []);
 
@@ -113,7 +114,7 @@ export default function SetupWizardView() {
       await updateCompanyProfile({ company_id, name: companyName.trim() });
       await refresh();
     } catch (err: any) {
-      setLocalError(err?.message || 'تعذر حفظ بيانات الشركة');
+      setLocalError(normalizeError(err).message);
     } finally {
       setSaving(false);
     }
@@ -132,7 +133,7 @@ export default function SetupWizardView() {
       });
       await refresh();
     } catch (err: any) {
-      setLocalError(err?.message || 'تعذر إنشاء البيانات الافتراضية');
+      setLocalError(normalizeError(err).message);
     } finally {
       setSaving(false);
     }
@@ -158,7 +159,7 @@ export default function SetupWizardView() {
       await loadUsers();
       await refresh();
     } catch (err: any) {
-      setLocalError(err?.message || 'تعذر إرسال الدعوة');
+      setLocalError(normalizeError(err).message);
     } finally {
       setSaving(false);
     }
@@ -173,7 +174,7 @@ export default function SetupWizardView() {
       localStorage.setItem('saitara.setup.completed', 'true');
       navigate('/app/dashboard');
     } catch (err: any) {
-      setLocalError(err?.message || 'تعذر إكمال الإعداد');
+      setLocalError(normalizeError(err).message);
     } finally {
       setSaving(false);
     }
@@ -346,7 +347,7 @@ export default function SetupWizardView() {
                 onChange={(event) => setInviteForm((prev) => ({ ...prev, role: event.target.value as UserRole }))}
               >
                 <option value="ACCOUNTANT">محاسب</option>
-                <option value="EMPLOYEE">مسؤول عهدة</option>
+                <option value="CUSTODY_OFFICER">مسؤول عهدة</option>
                 <option value="OWNER">مالك (إن لزم)</option>
               </select>
               <button

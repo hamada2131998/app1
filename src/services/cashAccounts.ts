@@ -7,13 +7,11 @@ export async function listCashAccounts(params: {
   activeOnly?: boolean;
 }): Promise<CashAccountRow[]> {
   const cId = requireCompanyId(params.company_id);
-  let q = supabase
-    .from('cash_accounts')
-    .select('id, company_id, branch_id, name, type, is_active')
-    .eq('company_id', cId);
-  if (params.branch_id) q = q.eq('branch_id', params.branch_id);
-  if (params.activeOnly) q = q.eq('is_active', true);
-  const { data, error } = await q.order('name', { ascending: true });
+  const { data, error } = await supabase.rpc('list_cash_accounts', {
+    p_company_id: cId,
+    p_branch_id: params.branch_id ?? null,
+    p_active_only: params.activeOnly ?? null,
+  });
   if (error) throw error;
   return (data || []) as CashAccountRow[];
 }
@@ -24,27 +22,21 @@ export async function createCashAccount(params: {
   name: string;
 }): Promise<CashAccountRow> {
   const cId = requireCompanyId(params.company_id);
-  const { data, error } = await supabase
-    .from('cash_accounts')
-    .insert({
-      company_id: cId,
-      branch_id: params.branch_id ?? null,
-      name: params.name,
-      type: 'CASH',
-      is_active: true,
-    })
-    .select('id, company_id, branch_id, name, type, is_active')
-    .single();
+  const { data, error } = await supabase.rpc('create_cash_account', {
+    p_company_id: cId,
+    p_branch_id: params.branch_id ?? null,
+    p_name: params.name,
+  });
   if (error) throw error;
   return data as CashAccountRow;
 }
 
 export async function toggleCashAccountActive(params: { company_id: string; id: string; is_active: boolean }) {
   const cId = requireCompanyId(params.company_id);
-  const { error } = await supabase
-    .from('cash_accounts')
-    .update({ is_active: params.is_active })
-    .eq('company_id', cId)
-    .eq('id', params.id);
+  const { error } = await supabase.rpc('toggle_cash_account_active', {
+    p_company_id: cId,
+    p_account_id: params.id,
+    p_is_active: params.is_active,
+  });
   if (error) throw error;
 }

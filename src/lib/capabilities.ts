@@ -1,5 +1,7 @@
 export type RoleCapabilities = {
   isOwner: boolean;
+  isAccountant: boolean;
+  isCustodyOfficer: boolean;
   canViewDashboard: boolean;
   canViewExpenses: boolean;
   canCreateExpenses: boolean;
@@ -10,34 +12,30 @@ export type RoleCapabilities = {
   canViewSettings: boolean;
 };
 
-const normalizeRole = (role?: string | null) => (role || '').trim().toLowerCase();
+const normalizeRole = (role?: string | null) => (role || '').trim().toUpperCase();
 
-const isOwnerRole = (role?: string | null) => ['owner', 'company_owner', 'super_admin'].includes(normalizeRole(role));
+const isOwnerRole = (role?: string | null) => normalizeRole(role) === 'OWNER';
 
-const isAccountantManagerRole = (role?: string | null) =>
-  ['accountant_manager', 'accountant-manager', 'finance_manager', 'finance-manager'].includes(normalizeRole(role));
+const isAccountantRole = (role?: string | null) => normalizeRole(role) === 'ACCOUNTANT';
 
-const isAccountantRole = (role?: string | null) =>
-  isAccountantManagerRole(role) || ['accountant', 'finance'].includes(normalizeRole(role));
-
-const isCustodyRole = (role?: string | null) =>
-  ['custodian', 'custody_officer', 'custody-officer', 'custody', 'employee'].includes(normalizeRole(role));
+const isCustodyRole = (role?: string | null) => normalizeRole(role) === 'CUSTODY_OFFICER';
 
 export function getRoleCapabilities(role?: string | null): RoleCapabilities {
   const owner = isOwnerRole(role);
   const accountant = isAccountantRole(role);
-  const accountantManager = isAccountantManagerRole(role);
   const custody = isCustodyRole(role);
 
   return {
     isOwner: owner,
+    isAccountant: accountant,
+    isCustodyOfficer: custody,
     canViewDashboard: owner || accountant || custody,
     canViewExpenses: owner || accountant,
     canCreateExpenses: owner || accountant,
-    canViewCustody: owner || custody,
+    canViewCustody: owner || accountant || custody,
     canManageCustody: owner || custody,
-    canViewApprovals: owner || accountantManager,
-    canManageApprovals: owner || accountantManager,
+    canViewApprovals: owner,
+    canManageApprovals: owner,
     canViewSettings: owner || accountant,
   };
 }

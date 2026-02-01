@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/ui/new/components/StateV
 import { formatCurrency, formatDate } from '@/ui/new/utils/format';
 
 export default function ApprovalsQueueView() {
-  const { role } = useCompany();
+  const { company_id, role } = useCompany();
   const capabilities = getRoleCapabilities(role);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,14 +17,14 @@ export default function ApprovalsQueueView() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listPendingApprovals();
+      const data = await listPendingApprovals(company_id ?? undefined);
       setRows(data || []);
     } catch (err: any) {
       setError(err?.message || 'تعذر تحميل الموافقات');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [company_id]);
 
   useEffect(() => {
     if (!canSeeApprovals) {

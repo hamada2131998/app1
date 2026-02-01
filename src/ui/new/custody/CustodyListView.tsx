@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from '@/ui/new/utils/format';
 type CustodyItem = any;
 
 export default function CustodyListView() {
-  const { role } = useCompany();
+  const { company_id, role } = useCompany();
   const capabilities = getRoleCapabilities(role);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +23,11 @@ export default function CustodyListView() {
   const canManage = capabilities.canManageCustody;
 
   const loadCustodies = useCallback(async () => {
+    if (!company_id) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await getCustodies();
+      const data = await getCustodies({ company_id });
       setCustodies(data || []);
       if (data?.length && !selected) {
         setSelected(data[0]);
@@ -36,7 +37,7 @@ export default function CustodyListView() {
     } finally {
       setLoading(false);
     }
-  }, [selected]);
+  }, [company_id, selected]);
 
   const loadTransactions = useCallback(async () => {
     if (!selected) return;

@@ -2,7 +2,7 @@
 export enum UserRole {
   OWNER = 'OWNER',
   ACCOUNTANT = 'ACCOUNTANT',
-  EMPLOYEE = 'EMPLOYEE'
+  CUSTODY_OFFICER = 'CUSTODY_OFFICER'
 }
 
 export enum MovementStatus {

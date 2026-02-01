@@ -8,12 +8,9 @@
 // =====================================================
 
 export type AppRole = 
-  | 'super_admin'
-  | 'company_owner'
-  | 'finance_manager'
-  | 'accountant'
-  | 'custodian'
-  | 'employee';
+  | 'OWNER'
+  | 'ACCOUNTANT'
+  | 'CUSTODY_OFFICER';
 
 export type ExpenseStatus = 
   | 'draft'

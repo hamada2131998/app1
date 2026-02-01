@@ -1,17 +1,17 @@
 export function normalizeRole(role?: string | null) {
-  return (role || '').trim().toLowerCase();
+  return (role || '').trim().toUpperCase();
 }
 
 export function isOwnerRole(role?: string | null) {
   const normalized = normalizeRole(role);
-  return ['owner', 'company_owner', 'super_admin'].includes(normalized);
+  return normalized === 'OWNER';
 }
 
 export function isAccountantManagerRole(role?: string | null) {
   const normalized = normalizeRole(role);
-  return ['accountant', 'finance_manager', 'accountant_manager', 'accountant-manager'].includes(normalized);
+  return normalized === 'ACCOUNTANT';
 }
 
 export function canApprove(role?: string | null) {
-  return isOwnerRole(role) || isAccountantManagerRole(role);
+  return isOwnerRole(role);
 }

@@ -5,31 +5,24 @@ import { Custody, CustodyTransaction } from '../types';
 /**
  * جلب قائمة العُهد مع بيانات الموظفين
  */
-export async function listCustodies(): Promise<Custody[]> {
+export async function listCustodies(params?: { company_id?: string | null }): Promise<Custody[]> {
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  // نجلب العهد ونحسب الرصيد يدوياً أو عبر استدعاء RPC لكل عنصر (الأفضل RPC لإعطاء مصدر الحقيقة)
-  const { data, error } = await client
-    .from('custodies')
-    .select(`
-      *,
-      employee:profiles!custodies_user_id_fkey(id, full_name)
-    `)
-    .eq('is_active', true);
+  const { data, error } = await client.rpc('list_custodies', {
+    p_company_id: params?.company_id ?? null,
+  });
 
   if (error) {
     if (error.code === 'PGRST301') throw new Error("SESSION_EXPIRED");
     throw error;
   }
 
-  // إثراء البيانات بالأرصدة الحالية
-  const custodiesWithBalances = await Promise.all(data.map(async (c) => {
-    const { data: balance } = await client.rpc('get_custody_balance', { p_custody_id: c.id });
-    return { ...c, current_balance: balance || 0 };
-  }));
-
-  return custodiesWithBalances as unknown as Custody[];
+  const rows = (data || []) as Array<Custody & { employee_name?: string | null }>;
+  return rows.map((row) => ({
+    ...row,
+    employee: row.employee_name ? { id: row.user_id, full_name: row.employee_name } : undefined,
+  })) as unknown as Custody[];
 }
 
 /**
@@ -39,11 +32,9 @@ export async function listCustodyTransactions(custodyId: string): Promise<Custod
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('custody_transactions')
-    .select('*')
-    .eq('custody_id', custodyId)
-    .order('created_at', { ascending: false });
+  const { data, error } = await client.rpc('list_custody_transactions', {
+    p_custody_id: custodyId,
+  });
 
   if (error) throw error;
   return data as CustodyTransaction[];
@@ -76,4 +67,16 @@ export async function processCustodyTx(payload: {
   }
 
   return data;
+}
+
+export async function getMyCustodyBalance(params: { company_id?: string | null }): Promise<number> {
+  const { client, error: initError } = getSupabase();
+  if (initError || !client) throw new Error(initError || "Supabase client not initialized");
+
+  const { data, error } = await client.rpc('get_my_custody_balance', {
+    p_company_id: params.company_id ?? null,
+  });
+
+  if (error) throw error;
+  return Number(data || 0);
 }

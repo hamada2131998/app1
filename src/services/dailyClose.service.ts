@@ -34,11 +34,13 @@ export async function createDailyClose(payload: {
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('daily_closes')
-    .insert([payload])
-    .select()
-    .single();
+  const { data, error } = await client.rpc('create_daily_close', {
+    p_account_id: payload.account_id,
+    p_close_date: payload.close_date,
+    p_expected_balance: payload.expected_balance,
+    p_actual_balance: payload.actual_balance,
+    p_note: payload.note ?? null,
+  });
 
   if (error) {
     if (error.code === 'PGRST301') throw new Error("SESSION_EXPIRED");

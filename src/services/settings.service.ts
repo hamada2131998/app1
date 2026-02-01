@@ -6,10 +6,7 @@ export async function listBranches(): Promise<Branch[]> {
   const { client } = getSupabase();
   if (!client) throw new Error("Supabase not initialized");
   
-  const { data, error } = await client
-    .from('branches')
-    .select('*')
-    .order('created_at', { ascending: true });
+  const { data, error } = await client.rpc('list_branches');
     
   if (error) throw error;
   return data as Branch[];
@@ -19,11 +16,9 @@ export async function createBranch(name: string) {
   const { client } = getSupabase();
   if (!client) throw new Error("Supabase not initialized");
   
-  const { data, error } = await client
-    .from('branches')
-    .insert([{ name }])
-    .select()
-    .single();
+  const { data, error } = await client.rpc('create_branch', {
+    p_name: name,
+  });
     
   if (error) throw error;
   return data;
@@ -33,10 +28,10 @@ export async function toggleBranchStatus(id: string, active: boolean) {
   const { client } = getSupabase();
   if (!client) throw new Error("Supabase not initialized");
   
-  const { error } = await client
-    .from('branches')
-    .update({ is_active: active })
-    .eq('id', id);
+  const { error } = await client.rpc('toggle_branch_status', {
+    p_branch_id: id,
+    p_is_active: active,
+  });
     
   if (error) throw error;
 }
@@ -45,28 +40,33 @@ export async function listCompanyUsers() {
   const { client } = getSupabase();
   if (!client) throw new Error("Supabase not initialized");
   
-  const { data, error } = await client
-    .from('user_roles')
-    .select(`
-      role,
-      user_id,
-      company_id,
-      profile:profiles!user_roles_user_id_fkey(id, full_name)
-    `);
+  const { data, error } = await client.rpc('list_company_users');
     
   if (error) throw error;
-  return data;
+  const rows = (data || []) as Array<{
+    role: string;
+    user_id: string;
+    company_id: string;
+    full_name?: string | null;
+    email?: string | null;
+  }>;
+  return rows.map((row) => ({
+    role: row.role,
+    user_id: row.user_id,
+    company_id: row.company_id,
+    profile: row.full_name || row.email ? { id: row.user_id, full_name: row.full_name, email: row.email } : null,
+  }));
 }
 
 export async function updateUserRole(userId: string, companyId: string, role: UserRole) {
   const { client } = getSupabase();
   if (!client) throw new Error("Supabase not initialized");
   
-  const { error } = await client
-    .from('user_roles')
-    .update({ role })
-    .eq('user_id', userId)
-    .eq('company_id', companyId);
+  const { error } = await client.rpc('update_user_role', {
+    p_user_id: userId,
+    p_company_id: companyId,
+    p_role: role,
+  });
     
   if (error) throw error;
 }
