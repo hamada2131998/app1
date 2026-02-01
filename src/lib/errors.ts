@@ -31,6 +31,7 @@ export function normalizeError(err: any): NormalizedError {
   if (message.includes('Locked')) translatedMessage = ERROR_MAPPINGS['LOCKED_PERIOD'];
   if (message.includes('Invalid login')) translatedMessage = ERROR_MAPPINGS['INVALID_CREDENTIALS'];
   if (message.includes('Failed to fetch')) translatedMessage = ERROR_MAPPINGS['NETWORK_ERROR'];
+  if (message.includes('Unauthorized')) translatedMessage = ERROR_MAPPINGS['42501'];
 
   return {
     code,

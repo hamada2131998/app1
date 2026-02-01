@@ -96,8 +96,21 @@ function SetupGate({ children }: { children: React.ReactNode }) {
     return <LoadingScreen />;
   }
 
-  if (capabilities.isOwner && status && !status.setup_completed && !isSetupRoute) {
-    return <Navigate to="/app/setup" replace />;
+  if (status && !status.setup_completed && !isSetupRoute) {
+    if (capabilities.isOwner) {
+      return <Navigate to="/app/setup" replace />;
+    }
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">النظام قيد الإعداد</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            يتم الآن تجهيز الحساب بواسطة مالك الشركة. يرجى العودة لاحقاً أو التواصل مع المالك لإكمال الإعداد.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

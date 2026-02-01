@@ -9,17 +9,16 @@ export async function listMovementAttachments(movementId: string): Promise<Movem
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('movement_attachments')
-    .select(`
-      *,
-      uploader:profiles!movement_attachments_uploaded_by_fkey(id, full_name)
-    `)
-    .eq('movement_id', movementId)
-    .order('uploaded_at', { ascending: false });
+  const { data, error } = await client.rpc('list_movement_attachments', {
+    p_movement_id: movementId,
+  });
 
   if (error) throw error;
-  return data as unknown as MovementAttachment[];
+  const rows = (data || []) as Array<MovementAttachment & { uploader_name?: string | null }>;
+  return rows.map((row) => ({
+    ...row,
+    uploader: row.uploader_name ? { id: row.uploaded_by, full_name: row.uploader_name } : undefined,
+  })) as unknown as MovementAttachment[];
 }
 
 /**
@@ -60,17 +59,13 @@ export async function uploadMovementAttachment(movementId: string, companyId: st
   }
 
   // 5. تسجيل Metadata في قاعدة البيانات
-  const { data: attachment, error: dbError } = await client
-    .from('movement_attachments')
-    .insert([{
-      movement_id: movementId,
-      storage_path: storagePath,
-      file_name: file.name,
-      mime_type: file.type,
-      file_size: file.size
-    }])
-    .select()
-    .single();
+  const { data: attachment, error: dbError } = await client.rpc('create_movement_attachment', {
+    p_movement_id: movementId,
+    p_storage_path: storagePath,
+    p_file_name: file.name,
+    p_mime_type: file.type,
+    p_file_size: file.size,
+  });
 
   if (dbError) {
     // محاولة تنظيف الملف في حال فشل تسجيله في القاعدة لضمان النزاهة
@@ -113,10 +108,9 @@ export async function deleteAttachment(id: string, storagePath: string) {
   if (storageError) throw storageError;
 
   // حذف من قاعدة البيانات
-  const { error: dbError } = await client
-    .from('movement_attachments')
-    .delete()
-    .eq('id', id);
+  const { error: dbError } = await client.rpc('delete_movement_attachment', {
+    p_attachment_id: id,
+  });
 
   if (dbError) throw dbError;
 }

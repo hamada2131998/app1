@@ -13,22 +13,15 @@ export interface ListMovementsParams {
 
 export async function listCashMovements(params: ListMovementsParams): Promise<CashMovementRow[]> {
   const cId = requireCompanyId(params.company_id);
-  let q = supabase
-    .from('cash_movements')
-    .select(
-      'id, company_id, branch_id, account_id, category_id, type, status, amount, movement_date, payment_method, notes, reference, created_by, created_at'
-    )
-    .eq('company_id', cId);
-
-  if (params.branch_id) q = q.eq('branch_id', params.branch_id);
-  if (params.status) q = q.eq('status', params.status);
-  if (params.type) q = q.eq('type', params.type);
-  if (params.fromDate) q = q.gte('movement_date', params.fromDate);
-  if (params.toDate) q = q.lte('movement_date', params.toDate);
-  q = q.order('movement_date', { ascending: false }).order('created_at', { ascending: false });
-  if (params.limit) q = q.limit(params.limit);
-
-  const { data, error } = await q;
+  const { data, error } = await supabase.rpc('list_cash_movements', {
+    p_company_id: cId,
+    p_branch_id: params.branch_id ?? null,
+    p_status: params.status ?? null,
+    p_type: params.type ?? null,
+    p_from_date: params.fromDate ?? null,
+    p_to_date: params.toDate ?? null,
+    p_limit: params.limit ?? null,
+  });
   if (error) throw error;
   return (data || []) as CashMovementRow[];
 }
@@ -54,22 +47,25 @@ export async function createCashMovement(params: {
     account_id: params.account_id,
     category_id: params.category_id,
     type: params.type,
-    status: 'DRAFT' as const,
     amount: params.amount,
     movement_date: params.movement_date,
     payment_method: params.payment_method ?? 'CASH',
     notes: params.notes ?? null,
     reference: params.reference ?? null,
-    // created_by is handled by DB default (created_by=auth.uid()) per schema
   };
 
-  const { data, error } = await supabase
-    .from('cash_movements')
-    .insert(insertRow)
-    .select(
-      'id, company_id, branch_id, account_id, category_id, type, status, amount, movement_date, payment_method, notes, reference, created_by, created_at'
-    )
-    .single();
+  const { data, error } = await supabase.rpc('create_cash_movement', {
+    p_company_id: insertRow.company_id,
+    p_branch_id: insertRow.branch_id,
+    p_account_id: insertRow.account_id,
+    p_category_id: insertRow.category_id,
+    p_type: insertRow.type,
+    p_amount: insertRow.amount,
+    p_movement_date: insertRow.movement_date,
+    p_payment_method: insertRow.payment_method,
+    p_notes: insertRow.notes,
+    p_reference: insertRow.reference,
+  });
   if (error) throw error;
   return data as CashMovementRow;
 }
@@ -80,18 +76,28 @@ export async function updateCashMovementDraft(params: {
   patch: Partial<Pick<CashMovementRow, 'account_id' | 'category_id' | 'type' | 'amount' | 'movement_date' | 'payment_method' | 'notes' | 'reference'>>;
 }): Promise<void> {
   const cId = requireCompanyId(params.company_id);
-  const { error } = await supabase
-    .from('cash_movements')
-    .update(params.patch)
-    .eq('company_id', cId)
-    .eq('id', params.id)
-    .eq('status', 'DRAFT');
+  const { error } = await supabase.rpc('update_cash_movement_draft', {
+    p_company_id: cId,
+    p_movement_id: params.id,
+    p_account_id: params.patch.account_id ?? null,
+    p_category_id: params.patch.category_id ?? null,
+    p_type: params.patch.type ?? null,
+    p_amount: params.patch.amount ?? null,
+    p_movement_date: params.patch.movement_date ?? null,
+    p_payment_method: params.patch.payment_method ?? null,
+    p_notes: params.patch.notes ?? null,
+    p_reference: params.patch.reference ?? null,
+  });
   if (error) throw error;
 }
 
 async function setStatus(company_id: string, id: string, status: MovementStatus): Promise<void> {
   const cId = requireCompanyId(company_id);
-  const { error } = await supabase.from('cash_movements').update({ status }).eq('company_id', cId).eq('id', id);
+  const { error } = await supabase.rpc('set_cash_movement_status', {
+    p_company_id: cId,
+    p_movement_id: id,
+    p_status: status,
+  });
   if (error) throw error;
 }
 
@@ -109,6 +115,9 @@ export async function rejectMovement(company_id: string, id: string): Promise<vo
 
 export async function deleteMovement(company_id: string, id: string): Promise<void> {
   const cId = requireCompanyId(company_id);
-  const { error } = await supabase.from('cash_movements').delete().eq('company_id', cId).eq('id', id);
+  const { error } = await supabase.rpc('delete_cash_movement', {
+    p_company_id: cId,
+    p_movement_id: id,
+  });
   if (error) throw error;
 }

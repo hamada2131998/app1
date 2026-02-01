@@ -4,6 +4,7 @@ import { ArrowUpLeft, Banknote, Clock, PlusCircle, Wallet } from 'lucide-react';
 import { getDashboardData } from '@/adapters/dashboard.adapter';
 import { listExpenses } from '@/adapters/expenses.adapter';
 import { listPendingApprovals } from '@/adapters/approvals.adapter';
+import { getMyCustodyBalance } from '@/adapters/custody.adapter';
 import { useCompany } from '@/contexts/CompanyContext';
 import { getRoleCapabilities } from '@/lib/capabilities';
 import { formatCurrency, formatDate } from '@/ui/new/utils/format';
@@ -27,8 +28,14 @@ export default function DashboardView() {
   const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingItem[]>([]);
   const [showSetupBanner, setShowSetupBanner] = useState(false);
+  const [custodyBalance, setCustodyBalance] = useState<number | null>(null);
 
   const canSeeApprovals = capabilities.canViewApprovals;
+  const isCustodyOfficer = capabilities.isCustodyOfficer;
+
+  if (!capabilities.canViewDashboard) {
+    return <EmptyState title="لا يوجد صلاحية" description="لا تملك صلاحية الوصول إلى لوحة التحكم حالياً." />;
+  }
 
   useEffect(() => {
     const flag = localStorage.getItem('saitara.setup.completed');
@@ -42,10 +49,19 @@ export default function DashboardView() {
     setLoading(true);
     setError(null);
     try {
+      if (isCustodyOfficer) {
+        const balance = await getMyCustodyBalance({ company_id });
+        setCustodyBalance(balance);
+        setStats(null);
+        setRecentExpenses([]);
+        setPendingApprovals([]);
+        return;
+      }
+
       const [statsData, expensesData, approvalsData] = await Promise.all([
         getDashboardData({ company_id, branch_id }),
         listExpenses({ company_id, branch_id, limit: 4 }),
-        canSeeApprovals ? listPendingApprovals() : Promise.resolve([]),
+        canSeeApprovals ? listPendingApprovals(company_id) : Promise.resolve([]),
       ]);
       setStats(statsData);
       setRecentExpenses(expensesData || []);
@@ -55,7 +71,7 @@ export default function DashboardView() {
     } finally {
       setLoading(false);
     }
-  }, [branch_id, canSeeApprovals, company_id]);
+  }, [branch_id, canSeeApprovals, company_id, isCustodyOfficer]);
 
   useEffect(() => {
     loadData();
@@ -79,6 +95,27 @@ export default function DashboardView() {
 
   if (error) {
     return <ErrorState title="تعذر تحميل البيانات" description={error} onRetry={loadData} />;
+  }
+
+  if (isCustodyOfficer) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-3xl bg-slate-900 p-6 text-white shadow-lg">
+          <p className="text-sm text-slate-300">رصيد العهدة</p>
+          <h1 className="mt-3 text-3xl font-semibold">{formatCurrency(custodyBalance ?? 0)}</h1>
+          <p className="mt-3 text-xs text-slate-300">يمكنك إدارة معاملات العهدة من صفحة العهد.</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">إجراءات سريعة</h2>
+          <div className="mt-4 grid grid-cols-1 gap-3">
+            <Link className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 py-3 text-sm text-white" to="/app/custody">
+              <Wallet className="h-4 w-4" />
+              إدارة العهدة
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (isEmpty) {

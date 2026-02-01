@@ -48,7 +48,7 @@ const Approvals: React.FC = () => {
   };
 
   useEffect(() => {
-    if (membership && membership.role === UserRole.EMPLOYEE) {
+    if (membership && membership.role === UserRole.CUSTODY_OFFICER) {
       navigate('/');
       return;
     }
@@ -68,7 +68,7 @@ const Approvals: React.FC = () => {
     }
   };
 
-  if (membership?.role === UserRole.EMPLOYEE) return null;
+  if (membership?.role === UserRole.CUSTODY_OFFICER) return null;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">

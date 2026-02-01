@@ -9,16 +9,7 @@ export async function listMovements(): Promise<CashMovement[]> {
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('cash_movements')
-    .select(`
-      *,
-      category:categories(id, name, kind),
-      account:cash_accounts(id, name, type)
-    `)
-    .order('movement_date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(100);
+  const { data, error } = await client.rpc('list_movements');
 
   if (error) {
     if (error.code === 'PGRST301' || error.message.includes('JWT')) {
@@ -27,7 +18,12 @@ export async function listMovements(): Promise<CashMovement[]> {
     throw error;
   }
 
-  return data as unknown as CashMovement[];
+  const rows = (data || []) as Array<CashMovement & { category_name?: string; category_kind?: string; account_name?: string; account_type?: string }>;
+  return rows.map((row) => ({
+    ...row,
+    category: row.category_name ? { id: row.category_id, name: row.category_name, kind: row.category_kind as any } : undefined,
+    account: row.account_name ? { id: row.account_id, name: row.account_name, type: row.account_type as any } : undefined,
+  })) as unknown as CashMovement[];
 }
 
 /**
@@ -37,18 +33,9 @@ export async function getMovementById(id: string): Promise<CashMovement> {
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('cash_movements')
-    .select(`
-      *,
-      category:categories(id, name, kind),
-      account:cash_accounts(id, name, type, branch_id),
-      branch:branches(id, name),
-      creator:profiles!cash_movements_created_by_fkey(id, full_name),
-      approver:profiles!cash_movements_approved_by_fkey(id, full_name)
-    `)
-    .eq('id', id)
-    .single();
+  const { data, error } = await client.rpc('get_movement_by_id', {
+    p_movement_id: id,
+  });
 
   if (error) {
     if (error.code === 'PGRST301') throw new Error("SESSION_EXPIRED");
@@ -56,7 +43,29 @@ export async function getMovementById(id: string): Promise<CashMovement> {
     throw error;
   }
 
-  return data as unknown as CashMovement;
+  const row = (Array.isArray(data) ? data[0] : data) as CashMovement & {
+    category_name?: string;
+    category_kind?: string;
+    account_name?: string;
+    account_type?: string;
+    account_branch_id?: string | null;
+    branch_name?: string | null;
+    creator_name?: string | null;
+    approver_name?: string | null;
+  };
+
+  if (!row) {
+    throw new Error("المستند غير موجود");
+  }
+
+  return {
+    ...row,
+    category: row.category_name ? { id: row.category_id, name: row.category_name, kind: row.category_kind as any } : undefined,
+    account: row.account_name ? { id: row.account_id, name: row.account_name, type: row.account_type as any, branch_id: row.account_branch_id || undefined } : undefined,
+    branch: row.branch_name ? { id: row.branch_id as any, name: row.branch_name } : undefined,
+    creator: row.creator_name ? { id: row.created_by, full_name: row.creator_name } : undefined,
+    approver: row.approver_name ? { id: row.approved_by as any, full_name: row.approver_name } : undefined,
+  } as unknown as CashMovement;
 }
 
 /**
@@ -66,22 +75,20 @@ export async function getMovementAuditLogs(movementId: string): Promise<AuditLog
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('audit_logs')
-    .select(`
-      *,
-      actor:profiles!audit_logs_actor_id_fkey(id, full_name)
-    `)
-    .eq('entity_id', movementId)
-    .eq('entity_type', 'CASH_MOVEMENT')
-    .order('created_at', { ascending: true });
+  const { data, error } = await client.rpc('get_movement_audit_logs', {
+    p_movement_id: movementId,
+  });
 
   if (error) {
     if (error.code === 'PGRST301') throw new Error("SESSION_EXPIRED");
     throw error;
   }
 
-  return data as unknown as AuditLog[];
+  const rows = (data || []) as Array<AuditLog & { actor_name?: string | null }>;
+  return rows.map((row) => ({
+    ...row,
+    actor: row.actor_name ? { id: row.actor_id, full_name: row.actor_name } : undefined,
+  })) as unknown as AuditLog[];
 }
 
 /**
@@ -101,11 +108,17 @@ export async function createMovement(payload: {
   const { client, error: initError } = getSupabase();
   if (initError || !client) throw new Error(initError || "Supabase client not initialized");
 
-  const { data, error } = await client
-    .from('cash_movements')
-    .insert([payload])
-    .select('id')
-    .single();
+  const { data, error } = await client.rpc('create_movement', {
+    p_account_id: payload.account_id,
+    p_category_id: payload.category_id,
+    p_type: payload.type,
+    p_amount: payload.amount,
+    p_movement_date: payload.movement_date,
+    p_notes: payload.notes ?? null,
+    p_reference: payload.reference ?? null,
+    p_payment_method: payload.payment_method,
+    p_status: payload.status,
+  });
 
   if (error) {
     if (error.code === 'PGRST301') throw new Error("SESSION_EXPIRED");
@@ -113,5 +126,5 @@ export async function createMovement(payload: {
     throw error;
   }
 
-  return data.id;
+  return data as string;
 }

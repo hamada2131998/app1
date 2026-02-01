@@ -2,7 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../integrations/supabase/client";
 
-type UserRole = "OWNER" | "ACCOUNTANT" | "EMPLOYEE" | string;
+type UserRole = "OWNER" | "ACCOUNTANT" | "CUSTODY_OFFICER" | string;
 
 type CompanyState = {
   company_id: string | null;
