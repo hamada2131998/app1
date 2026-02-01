@@ -1,5 +1,5 @@
 // src/contexts/CompanyContext.tsx
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../integrations/supabase/client";
 
 type UserRole = "OWNER" | "ACCOUNTANT" | "CUSTODY_OFFICER" | string;
@@ -34,6 +34,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const autoCreatedCompany = useRef(false);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -88,6 +89,33 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     const row = roles?.[0];
 
     if (!row?.company_id || !row?.role) {
+      if (!autoCreatedCompany.current) {
+        autoCreatedCompany.current = true;
+        const { error: createError } = await supabase.rpc('create_company_with_owner', {
+          p_company_name: 'شركة جديدة',
+        });
+
+        if (!createError) {
+          const { data: retryRoles, error: retryError } = await supabase
+            .from("user_roles")
+            .select("user_id, company_id, role, branch_id, created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          const retryRow = retryRoles?.[0];
+          if (!retryError && retryRow?.company_id && retryRow?.role) {
+            setCompany({
+              company_id: retryRow.company_id ?? null,
+              branch_id: retryRow.branch_id ?? null,
+              role: retryRow.role ?? null,
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       console.warn("[CompanyContext] No role row found for user:", userId, roles);
       setCompany({ company_id: null, branch_id: null, role: null });
       setError("خطأ في الصلاحيات: لا توجد صلاحيات مخصصة لهذا المستخدم");
